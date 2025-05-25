@@ -16,13 +16,12 @@ def start_command(message):
     ]
     for btn in buttons:
         markup.add(types.KeyboardButton(btn))
-    
+
     bot.send_message(message.chat.id,
         "Ласкаво просимо до SHARKAN BOT. Твій шлях починається зараз.",
         reply_markup=markup
     )
 
-# Заглушки на нажатия кнопок (добавим логику позже)
 @bot.message_handler(func=lambda msg: True)
 def handle_buttons(message):
     if message.text == "План на сьогодні":
