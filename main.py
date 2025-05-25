@@ -1,46 +1,126 @@
-import os
 import telebot
 from telebot import types
-from dotenv import load_dotenv
+from datetime import datetime, timedelta
+import json
+import os
 
-load_dotenv()
-bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
+BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
+bot = telebot.TeleBot(BOT_TOKEN)
 
-def send_audio(chat_id, filename, caption=""):
-    with open(f"audio/{filename}", "rb") as audio:
-        bot.send_audio(chat_id, audio, caption=caption)
+user_profiles = {}
+if os.path.exists("user_profiles.json"):
+    with open("user_profiles.json", "r") as f:
+        user_profiles = json.load(f)
+
+def save_profiles():
+    with open("user_profiles.json", "w") as f:
+        json.dump(user_profiles, f, indent=4, ensure_ascii=False)
 
 @bot.message_handler(commands=['start'])
-def start(message):
-    send_audio(message.chat.id, "welcome.mp3", "Ласкаво просимо до SHARKAN BOT!")
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    buttons = [
-        "План на сьогодні", "Мотивація", "Тренування", "Челленджі",
-        "Питання до SHARKAN AI", "Shadow Mode", "Темна Зона",
-        "Статистика і Прогрес", "SHARKAN Coins", "Вода / Харчування"
-    ]
-    for b in buttons:
-        markup.add(b)
-    bot.send_message(message.chat.id, "Обери розділ:", reply_markup=markup)
-
-@bot.message_handler(func=lambda m: True)
-def menu(m):
-    texts = {
-        "План на сьогодні": ("plan.mp3", "Ось твій план дій."),
-        "Мотивація": ("motivation.mp3", "Слухай і дій."),
-        "Тренування": ("training.mp3", "Настав час змінювати тіло."),
-        "Челленджі": ("challenge.mp3", "Обери виклик."),
-        "Питання до SHARKAN AI": ("ai.mp3", "Став своє питання."),
-        "Shadow Mode": ("shadow.mp3", "Режим Самотності активовано."),
-        "Темна Зона": ("darkzone.mp3", "Вхід дозволено лише обраним."),
-        "Статистика і Прогрес": ("stats.mp3", "Ось твій прогрес."),
-        "SHARKAN Coins": ("coins.mp3", "Твій баланс оновлено."),
-        "Вода / Харчування": ("water_food.mp3", "Пий воду. Їж правильно.")
-    }
-    if m.text in texts:
-        file, caption = texts[m.text]
-        send_audio(m.chat.id, file, caption)
+def start_command(message):
+    user_id = str(message.chat.id)
+    if user_id not in user_profiles:
+        user_profiles[user_id] = {
+            "start_time": datetime.now().isoformat(),
+            "step": "gender"
+        }
+        save_profiles()
+        bot.send_message(message.chat.id,
+            "Це SHARKAN BOT — платформа для дисципліни, сили і викликів.\n\n"
+            "Перші 3 дні безкоштовно. Потім — підписка.\n"
+            "Ти отримаєш:\n"
+            "• Персональні плани\n"
+            "• Shadow Mode\n"
+            "• Темну Зону\n"
+            "• AI-наставника\n"
+            "• Мотивацію, музику, книги\n\n"
+            "Натисни 'Продовжити', щоб розпочати.")
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.KeyboardButton("Продовжити"))
+        bot.send_message(message.chat.id, "Готовий почати?", reply_markup=markup)
     else:
-        bot.send_message(m.chat.id, "Розділ у розробці або невідомий.")
+        check_access_and_continue(message)
+
+@bot.message_handler(func=lambda msg: True)
+def message_handler(message):
+    user_id = str(message.chat.id)
+    text = message.text
+
+    if user_id not in user_profiles:
+        start_command(message)
+        return
+
+    profile = user_profiles[user_id]
+
+    if text == "Продовжити" and profile.get("step") == "gender":
+        bot.send_message(message.chat.id, "Оберіть вашу стать:", reply_markup=gender_buttons())
+        return
+
+    if profile.get("step") == "gender":
+        if text in ["Чоловік", "Жінка", "Інше"]:
+            profile["gender"] = text
+            profile["step"] = "goal"
+            save_profiles()
+            bot.send_message(message.chat.id, "Яка твоя мета?", reply_markup=goal_buttons())
+        return
+
+    if profile.get("step") == "goal":
+        profile["goal"] = text
+        profile["step"] = "level"
+        save_profiles()
+        bot.send_message(message.chat.id, "Який твій рівень?", reply_markup=level_buttons())
+        return
+
+    if profile.get("step") == "level":
+        profile["level"] = text
+        profile["step"] = "complete"
+        save_profiles()
+        bot.send_message(message.chat.id, "Профіль збережено. Вітаємо в SHARKAN BOT!")
+        show_main_menu(message)
+        return
+
+    check_access_and_continue(message)
+
+def check_access_and_continue(message):
+    user_id = str(message.chat.id)
+    profile = user_profiles.get(user_id, {})
+    start_time = datetime.fromisoformat(profile.get("start_time", datetime.now().isoformat()))
+    now = datetime.now()
+    trial_duration = timedelta(days=3)
+
+    if now - start_time > trial_duration:
+        bot.send_message(message.chat.id,
+                         "Пробний період завершено. Щоб продовжити користування:\nПідпишіться — €3.99/місяць.",
+                         reply_markup=subscription_buttons())
+    else:
+        show_main_menu(message)
+
+def show_main_menu(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    buttons = ["План на сьогодні", "Мотивація", "Тренування", "Челленджі",
+               "SHARKAN AI", "Темна Зона", "Книги", "Музика", "Прогрес", "Харчування / Вода"]
+    for btn in buttons:
+        markup.add(types.KeyboardButton(btn))
+    bot.send_message(message.chat.id, "Вибери розділ:", reply_markup=markup)
+
+def gender_buttons():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Чоловік", "Жінка", "Інше")
+    return markup
+
+def goal_buttons():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Схуднути", "Набрати масу", "Пройти виклики", "Покращити дисципліну", "Все разом")
+    return markup
+
+def level_buttons():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Новачок", "Середній рівень", "Я SHARKAN")
+    return markup
+
+def subscription_buttons():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Оплатити", "FAQ", "Повернутися")
+    return markup
 
 bot.infinity_polling()
