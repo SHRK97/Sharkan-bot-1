@@ -1,144 +1,159 @@
-
 import os
-import telebot
-from telebot import types
 import json
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime
+from telebot import TeleBot, types
 
-# === Ініціалізація ===
+# === Настройки ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = TeleBot(BOT_TOKEN)
+ADMIN_ID = 693609628
+VERSION = "SHARKAN BOT v1.0 — FULL LAUNCH"
 
-# === Стан користувачів ===
-user_profiles = {}
-trial_users = {}
+# === Логирование ===
+logging.basicConfig(
+    level=logging.INFO,
+    filename="bot.log",
+    filemode="a",
+    format="%(asctime)s — %(levelname)s — %(message)s"
+)
 
-# === Завантаження профілю ===
-def load_profiles():
-    global user_profiles
-    try:
-        with open("user_profiles.json", "r", encoding="utf-8") as f:
-            user_profiles = json.load(f)
-    except FileNotFoundError:
-        user_profiles = {}
+# === Загрузка и сохранение профилей ===
+USER_PROFILE_FILE = "user_profiles.json"
+if os.path.exists(USER_PROFILE_FILE):
+    with open(USER_PROFILE_FILE, "r") as f:
+        user_profiles = json.load(f)
+else:
+    user_profiles = {}
 
 def save_profiles():
-    with open("user_profiles.json", "w", encoding="utf-8") as f:
-        json.dump(user_profiles, f, ensure_ascii=False, indent=4)
+    try:
+        with open(USER_PROFILE_FILE, "w") as f:
+            json.dump(user_profiles, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"[SAVE_PROFILE_ERROR] {e}")
+
+# === Языки ===
+LANGUAGES = {'ua': 'Українська', 'ru': 'Русский', 'en': 'English'}
+user_lang = {}
 
 # === /start ===
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=["start"])
 def start(message):
     user_id = str(message.from_user.id)
-    if user_id not in user_profiles:
-        user_profiles[user_id] = {
-            "step": "lang_select",
-            "language": "ua",
-            "registered": str(datetime.now()),
-            "premium": False
-        }
-        trial_users[user_id] = datetime.now() + timedelta(days=3)
-        save_profiles()
-    send_intro(message)
+    markup = types.InlineKeyboardMarkup()
+    for code, name in LANGUAGES.items():
+        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
+    bot.send_message(message.chat.id, "👋 Обери мову / Choose your language:", reply_markup=markup)
 
-# === Вітання + пояснення ===
-def send_intro(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("Продовжити")
-    markup.add(btn1)
-    text = (
-        "Ласкаво просимо до SHARKAN BOT!
+# === Обработка языка ===
+@bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
+def handle_language(call):
+    lang = call.data.split("_")[1]
+    user_id = str(call.from_user.id)
+    user_lang[user_id] = lang
+    logging.info(f"[LANG SELECTED] {user_id} = {lang}")
+    text = {
+        "ua": "Ласкаво просимо до SHARKAN BOT — твого особистого наставника сили, дисципліни і трансформації.\nНатисни /menu щоб почати.",
+        "ru": "Добро пожаловать в SHARKAN BOT — твой личный наставник дисциплины, силы и мотивации.\nНажми /menu чтобы начать.",
+        "en": "Welcome to SHARKAN BOT — your personal coach for strength, discipline and transformation.\nPress /menu to begin."
+    }
+    bot.edit_message_text(text[lang], chat_id=call.message.chat.id, message_id=call.message.message_id)
 
-"
-        "Це не просто бот. Це твій особистий наставник.
-"
-        "Тут ти отримаєш:
-"
-        "• Персональні плани на день
-"
-        "• Мотивацію
-"
-        "• Тренування та челенджі
-"
-        "• Прогрес і систему рівнів
-"
-        "• Доступ до Темної Зони
-
-"
-        "Перші 3 дні — безкоштовно. Далі — підписка.
-
-"
-        "Для кого цей бот:
-"
-        "• Для тих, хто хоче стати кращим
-"
-        "• Для чоловіків, жінок і підлітків
-"
-        "• Для новачків і досвідчених
-
-"
-        "Готовий(-а) розпочати?"
-    )
-    bot.send_message(message.chat.id, text, reply_markup=markup)
-
-# === Продовження після інтро ===
-@bot.message_handler(func=lambda m: m.text == "Продовжити")
-def ask_gender(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Чоловік", "Жінка", "Підліток")
-    bot.send_message(message.chat.id, "Хто ти?", reply_markup=markup)
-
-@bot.message_handler(func=lambda m: m.text in ["Чоловік", "Жінка", "Підліток"])
-def ask_goal(message):
+# === Главное меню ===
+@bot.message_handler(commands=["menu"])
+def menu(message):
     user_id = str(message.from_user.id)
-    user_profiles[user_id]["gender"] = message.text
-    save_profiles()
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Схуднути", "Набрати вагу", "Пройти челендж", "Закалити характер")
-    bot.send_message(message.chat.id, "Яка твоя мета тут?", reply_markup=markup)
+    lang = user_lang.get(user_id, "ua")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    if lang == "ua":
+        buttons = ["План на сьогодні", "Тренування", "Мотивація", "Shadow Mode", "Мій профіль", "Мої результати", "Виклик", "SHRK COINS", "Налаштування"]
+    elif lang == "ru":
+        buttons = ["План на сегодня", "Тренировка", "Мотивация", "Shadow Mode", "Мой профиль", "Мои результаты", "Вызов", "SHRK COINS", "Настройки"]
+    else:
+        buttons = ["Today’s Plan", "Workout", "Motivation", "Shadow Mode", "My Profile", "My Results", "Challenge", "SHRK COINS", "Settings"]
+    markup.add(*buttons)
+    bot.send_message(message.chat.id, "Меню активовано:", reply_markup=markup)
 
-@bot.message_handler(func=lambda m: m.text in ["Схуднути", "Набрати вагу", "Пройти челендж", "Закалити характер"])
-def show_main_menu(message):
+# === /профіль — Создание профиля ===
+@bot.message_handler(commands=["профіль"])
+def profile_setup(message):
     user_id = str(message.from_user.id)
-    user_profiles[user_id]["goal"] = message.text
+    msg = bot.send_message(message.chat.id, "Введи свій ріст (у см):")
+    bot.register_next_step_handler(msg, lambda m: get_height(m, user_id))
+
+def get_height(message, user_id):
+    try:
+        height = int(message.text.strip())
+        user_profiles[user_id] = {"height": height}
+        msg = bot.send_message(message.chat.id, "Введи свою вагу (у кг):")
+        bot.register_next_step_handler(msg, lambda m: get_weight(m, user_id))
+    except:
+        bot.send_message(message.chat.id, "Будь ласка, введи число.")
+        profile_setup(message)
+
+def get_weight(message, user_id):
+    try:
+        weight = int(message.text.strip())
+        user_profiles[user_id]["weight"] = weight
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("Схуднути", "Набрати масу", "Підтримувати форму")
+        msg = bot.send_message(message.chat.id, "Оберіть ціль:", reply_markup=markup)
+        bot.register_next_step_handler(msg, lambda m: get_goal(m, user_id))
+    except:
+        bot.send_message(message.chat.id, "Будь ласка, введи число.")
+        profile_setup(message)
+
+def get_goal(message, user_id):
+    goal = message.text.strip()
+    user_profiles[user_id]["goal"] = goal
     save_profiles()
-    send_main_menu(message)
+    bot.send_message(message.chat.id, f"✅ Профіль збережено!\nРіст: {user_profiles[user_id]['height']} см\nВага: {user_profiles[user_id]['weight']} кг\nЦіль: {goal}")
 
-# === Головне меню ===
-def send_main_menu(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("План на сьогодні", "Мотивація", "Тренування")
-    markup.add("Челенджі", "Темна Зона", "AI-наставник")
-    markup.add("Прогрес", "Поради", "SHARKAN Coins")
-    markup.add("Допомога", "Контакти")
-    bot.send_message(message.chat.id, "Головне меню:", reply_markup=markup)
+# === /мійпрофіль — Показ профілю ===
+@bot.message_handler(commands=["мійпрофіль"])
+def show_profile(message):
+    user_id = str(message.from_user.id)
+    profile = user_profiles.get(user_id)
+    if profile:
+        bot.send_message(
+            message.chat.id,
+            f"Твій профіль:\nРіст: {profile.get('height')} см\nВага: {profile.get('weight')} кг\nЦіль: {profile.get('goal')}"
+        )
+    else:
+        bot.send_message(message.chat.id, "Профіль не знайдено. Введи /профіль щоб створити.")
 
-# === Обробка кнопок ===
-@bot.message_handler(func=lambda message: True)
-def menu_router(message):
-    if message.text == "План на сьогодні":
-        bot.send_message(message.chat.id, "Ось твій план: [приклад тексту]")
-    elif message.text == "Мотивація":
-        bot.send_message(message.chat.id, "Ти не зупинишся. Ти — SHARKAN.")
-    elif message.text == "Тренування":
-        bot.send_message(message.chat.id, "Обери тип: Набір / Спалення / Shadow Mode.")
-    elif message.text == "Челенджі":
-        bot.send_message(message.chat.id, "Обери челендж або створи свій.")
-    elif message.text == "Темна Зона":
-        bot.send_message(message.chat.id, "Доступ відкриється після першого челенджу.")
-    elif message.text == "AI-наставник":
-        bot.send_message(message.chat.id, "Постав запитання — AI відповість.")
-    elif message.text == "Прогрес":
-        bot.send_message(message.chat.id, "Ось твоя статистика та рівень.")
-    elif message.text == "Поради":
-        bot.send_message(message.chat.id, "Поради від тренерів та дієтологів.")
-    elif message.text == "SHARKAN Coins":
-        bot.send_message(message.chat.id, "Твій баланс: 0 монет.")
-    elif message.text == "Допомога":
-        bot.send_message(message.chat.id, "Що тебе цікавить? Напиши сюди.")
-    elif message.text == "Контакти":
-        bot.send_message(message.chat.id, "Зв’язок з автором: @rulya7777")
+# === Обработка текста из главного меню ===
+@bot.message_handler(func=lambda m: True)
+def handle_text(message):
+    user_id = str(message.from_user.id)
+    lang = user_lang.get(user_id, "ua")
+    text = message.text.strip().lower()
 
-# === Старт ===
-load_profiles()
-bot.polling(none_stop=True)
+    if text in ["мотивація", "motivation"]:
+        try:
+            with open("audio/motivation.mp3", "rb") as audio:
+                bot.send_audio(message.chat.id, audio, caption="Слухай. Пам’ятай. Дій.")
+        except:
+            bot.send_message(message.chat.id, "Файл мотивації не знайдено.")
+    elif text in ["shadow mode"]:
+        bot.send_message(message.chat.id, "Shadow Mode активовано.\nЦе режим самоти. Тут немає лайків. Немає оплесків. Є лише ти проти себе.")
+    elif text in ["мій профіль", "my profile"]:
+        show_profile(message)
+    elif text in ["план на сьогодні", "today’s plan"]:
+        bot.send_message(message.chat.id, "План на сьогодні:\n- Тренування: все тіло\n- Вода: 2 л\n- Їжа: білки + овочі\n- Shadow Mode: 1 сесія")
+    else:
+        bot.send_message(message.chat.id, "Вибери опцію з меню або введи /menu")
+
+# === Очистка логов (тільки адмін) ===
+@bot.message_handler(commands=["clearlog"])
+def clear_log(message):
+    if message.from_user.id == ADMIN_ID:
+        open("bot.log", "w").close()
+        bot.send_message(message.chat.id, "Логи очищено.")
+    else:
+        bot.send_message(message.chat.id, "У тебе немає доступу.")
+
+# === Запуск ===
+print(f"{VERSION} запущено.")
+bot.infinity_polling()
