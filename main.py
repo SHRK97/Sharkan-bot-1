@@ -53,7 +53,7 @@ def set_language(call):
     save_profiles()
 
     if lang == "ua":
-        text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!
+        text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!"
 👤 Обери свою стать:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
@@ -61,7 +61,7 @@ def set_language(call):
             types.InlineKeyboardButton("Я — жінка", callback_data="gender_female")
         )
     elif lang == "ru":
-        text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!
+        text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!"
 👤 Выбери свой пол:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
@@ -69,7 +69,7 @@ def set_language(call):
             types.InlineKeyboardButton("Я — женщина", callback_data="gender_female")
         )
     else:
-        text = "✅ Your language is English. Welcome to SHARKAN BOT!
+        text = "✅ Your language is English. Welcome to SHARKAN BOT!"
 👤 Select your gender:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
