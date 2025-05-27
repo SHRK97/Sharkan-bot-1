@@ -116,45 +116,6 @@ def motivation_handler(message):
 
     bot.send_message(message.chat.id, text)
 
-        # === Аудіо ===
-    try:
-        with open("audio/motivation.mp3", "rb") as audio:
-            bot.send_audio(message.chat.id, audio)
-    except:
-        bot.send_message(message.chat.id, "⚠️ Аудіофайл мотивації не знайдено.")
-
-    # === Фото ===
-    try:
-        with open("media/motivation.jpg", "rb") as photo:
-            bot.send_photo(message.chat.id, photo)
-    except:
-        bot.send_message(message.chat.id, "⚠️ Фото мотивації не знайдено.")
-
-    # === Відео ===
-    try:
-        with open("media/motivation.mp4", "rb") as video:
-            bot.send_video(message.chat.id, video)
-    except:
-        bot.send_message(message.chat.id, "⚠️ Відео мотивації не знайдено.")
-
-    try:
-        with open("audio/motivation.mp3", "rb") as audio:
-            bot.send_audio(message.chat.id, audio)
-    except:
-        bot.send_message(message.chat.id, "⚠️ Аудіофайл мотивації не знайдено.")
-
-    try:
-        with open("media/motivation.jpg", "rb") as photo:
-            bot.send_photo(message.chat.id, photo)
-    except:
-        bot.send_message(message.chat.id, "⚠️ Фото мотивації не знайдено.")
-
-    try:
-        with open("media/motivation.mp4", "rb") as video:
-            bot.send_video(message.chat.id, video, caption="🔥 SHARKAN FOCUS MODE")
-    except:
-        pass
-
 def menu_from_id(chat_id, user_id):
     lang = user_lang.get(user_id, "ua")
     gender = user_profiles.get(user_id, {}).get("gender", "male")
