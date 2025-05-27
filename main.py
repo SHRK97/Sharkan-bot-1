@@ -163,8 +163,6 @@ def handle_text(message):
         show_profile(message)
     elif text in ["план на сьогодні", "today’s plan"]:
         bot.send_message(message.chat.id, "📅 План на сьогодні:\n- 🏋️ Тренування: все тіло\n- 💧 Вода: 2 л\n- 🍽️ Їжа: білки + овочі\n- ⚔️ Shadow Mode: 1 сесія")
-    else:
-        bot.send_message(message.chat.id, "📍 Вибери опцію з меню або введи /menu")
 
 # === Очистка логов (тільки адмін) ===
 @bot.message_handler(commands=["clearlog"])
