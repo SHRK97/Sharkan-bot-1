@@ -51,13 +51,15 @@ def start(message):
 def set_language(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    lang = call.data.split("_")[1]  # ← Вот тут lang определяется
+    lang = call.data.split("_")[1]
 
+    # Сохраняем язык
     user_profiles[user_id] = user_profiles.get(user_id, {})
     user_profiles[user_id]["language"] = lang
     user_lang[user_id] = lang
     save_profiles()
 
+    # Приветственное сообщение
     if lang == "ua":
         welcome_text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!"
     elif lang == "ru":
@@ -67,9 +69,10 @@ def set_language(call):
     else:
         welcome_text = "✅ Language set."
 
+    # Обновляем сообщение
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
 
-    # Тепер lang вже є — і можна будувати меню:
+    # Показываем главное меню сразу
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
     if lang == "ua":
@@ -81,7 +84,6 @@ def set_language(call):
 
     markup.add(*buttons)
     bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
-
 # === /профіль — Створення профілю ===
 @bot.message_handler(commands=["профіль"])
 def profile_setup(message):
