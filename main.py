@@ -69,24 +69,18 @@ def set_language(call):
 
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
 
-    # Показать главное меню сразу
-    fake_message = types.SimpleNamespace(chat=types.SimpleNamespace(id=chat_id), from_user=types.SimpleNamespace(id=call.from_user.id))
-    menu(fake_message)
+# Показати головне меню відразу
+markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
-# === Главное меню ===
-@bot.message_handler(commands=["menu"])
-def menu(message):
-    user_id = str(message.from_user.id)
-    lang = user_lang.get(user_id, "ua")
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    if lang == "ua":
-        buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
-    elif lang == "ru":
-        buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
-    else:
-        buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
-    markup.add(*buttons)
-    bot.send_message(message.chat.id, "📋 Меню активовано:", reply_markup=markup)
+if lang == "ua":
+    buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
+elif lang == "ru":
+    buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
+else:
+    buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
+
+markup.add(*buttons)
+bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
 
 # === /профіль — Створення профілю ===
 @bot.message_handler(commands=["профіль"])
