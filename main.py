@@ -46,28 +46,32 @@ def start(message):
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language:", reply_markup=markup)
 
-# === Обработка языка ===
+# === Обработка языка + Меню ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
     chat_id = call.message.chat.id
+    user_id = str(call.from_user.id)
     lang = call.data.split("_")[1]
-    user_profiles[str(chat_id)] = user_profiles.get(str(chat_id), {})
-    user_profiles[str(chat_id)]["language"] = lang
+    
+    user_profiles[user_id] = user_profiles.get(user_id, {})
+    user_profiles[user_id]["language"] = lang
+    user_lang[user_id] = lang
     save_profiles()
 
     if lang == "ua":
-        welcome_text = "Твоя мова — українська. Вітаємо в SHARKAN BOT."
+        welcome_text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!"
     elif lang == "ru":
-        welcome_text = "Ваш язык — русский. Добро пожаловать в SHARKAN BOT."
+        welcome_text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!"
     elif lang == "en":
-        welcome_text = "Your language is English. Welcome to SHARKAN BOT."
+        welcome_text = "✅ Your language is English. Welcome to SHARKAN BOT!"
     else:
-        welcome_text = "Language set."
+        welcome_text = "✅ Language set."
 
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
-    
+
     # Показать главное меню сразу
-    show_main_menu(chat_id)
+    fake_message = types.SimpleNamespace(chat=types.SimpleNamespace(id=chat_id), from_user=types.SimpleNamespace(id=call.from_user.id))
+    menu(fake_message)
 
 # === Главное меню ===
 @bot.message_handler(commands=["menu"])
@@ -76,29 +80,29 @@ def menu(message):
     lang = user_lang.get(user_id, "ua")
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     if lang == "ua":
-        buttons = ["План на сьогодні", "Тренування", "Мотивація", "Shadow Mode", "Мій профіль", "Мої результати", "Виклик", "SHRK COINS", "Налаштування"]
+        buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
     elif lang == "ru":
-        buttons = ["План на сегодня", "Тренировка", "Мотивация", "Shadow Mode", "Мой профиль", "Мои результаты", "Вызов", "SHRK COINS", "Настройки"]
+        buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
     else:
-        buttons = ["Today’s Plan", "Workout", "Motivation", "Shadow Mode", "My Profile", "My Results", "Challenge", "SHRK COINS", "Settings"]
+        buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
     markup.add(*buttons)
-    bot.send_message(message.chat.id, "Меню активовано:", reply_markup=markup)
+    bot.send_message(message.chat.id, "📋 Меню активовано:", reply_markup=markup)
 
-# === /профіль — Создание профиля ===
+# === /профіль — Створення профілю ===
 @bot.message_handler(commands=["профіль"])
 def profile_setup(message):
     user_id = str(message.from_user.id)
-    msg = bot.send_message(message.chat.id, "Введи свій ріст (у см):")
+    msg = bot.send_message(message.chat.id, "📏 Введи свій ріст (у см):")
     bot.register_next_step_handler(msg, lambda m: get_height(m, user_id))
 
 def get_height(message, user_id):
     try:
         height = int(message.text.strip())
         user_profiles[user_id] = {"height": height}
-        msg = bot.send_message(message.chat.id, "Введи свою вагу (у кг):")
+        msg = bot.send_message(message.chat.id, "⚖️ Введи свою вагу (у кг):")
         bot.register_next_step_handler(msg, lambda m: get_weight(m, user_id))
     except:
-        bot.send_message(message.chat.id, "Будь ласка, введи число.")
+        bot.send_message(message.chat.id, "❌ Будь ласка, введи число.")
         profile_setup(message)
 
 def get_weight(message, user_id):
@@ -107,17 +111,17 @@ def get_weight(message, user_id):
         user_profiles[user_id]["weight"] = weight
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("Схуднути", "Набрати масу", "Підтримувати форму")
-        msg = bot.send_message(message.chat.id, "Оберіть ціль:", reply_markup=markup)
+        msg = bot.send_message(message.chat.id, "🎯 Обери свою ціль:", reply_markup=markup)
         bot.register_next_step_handler(msg, lambda m: get_goal(m, user_id))
     except:
-        bot.send_message(message.chat.id, "Будь ласка, введи число.")
+        bot.send_message(message.chat.id, "❌ Будь ласка, введи число.")
         profile_setup(message)
 
 def get_goal(message, user_id):
     goal = message.text.strip()
     user_profiles[user_id]["goal"] = goal
     save_profiles()
-    bot.send_message(message.chat.id, f"✅ Профіль збережено!\nРіст: {user_profiles[user_id]['height']} см\nВага: {user_profiles[user_id]['weight']} кг\nЦіль: {goal}")
+    bot.send_message(message.chat.id, f"✅ Профіль збережено!\n\n📏 Ріст: {user_profiles[user_id]['height']} см\n⚖️ Вага: {user_profiles[user_id]['weight']} кг\n🎯 Ціль: {goal}")
 
 # === /мійпрофіль — Показ профілю ===
 @bot.message_handler(commands=["мійпрофіль"])
@@ -127,10 +131,10 @@ def show_profile(message):
     if profile:
         bot.send_message(
             message.chat.id,
-            f"Твій профіль:\nРіст: {profile.get('height')} см\nВага: {profile.get('weight')} кг\nЦіль: {profile.get('goal')}"
+            f"👤 Твій профіль:\n📏 Ріст: {profile.get('height')} см\n⚖️ Вага: {profile.get('weight')} кг\n🎯 Ціль: {profile.get('goal')}"
         )
     else:
-        bot.send_message(message.chat.id, "Профіль не знайдено. Введи /профіль щоб створити.")
+        bot.send_message(message.chat.id, "❗ Профіль не знайдено. Введи /профіль щоб створити.")
 
 # === Обработка текста из главного меню ===
 @bot.message_handler(func=lambda m: True)
@@ -142,26 +146,26 @@ def handle_text(message):
     if text in ["мотивація", "motivation"]:
         try:
             with open("audio/motivation.mp3", "rb") as audio:
-                bot.send_audio(message.chat.id, audio, caption="Слухай. Пам’ятай. Дій.")
+                bot.send_audio(message.chat.id, audio, caption="🎧 Слухай. Пам’ятай. Дій.")
         except:
-            bot.send_message(message.chat.id, "Файл мотивації не знайдено.")
+            bot.send_message(message.chat.id, "❌ Файл мотивації не знайдено.")
     elif text in ["shadow mode"]:
-        bot.send_message(message.chat.id, "Shadow Mode активовано.\nЦе режим самоти. Тут немає лайків. Немає оплесків. Є лише ти проти себе.")
+        bot.send_message(message.chat.id, "⚔️ Shadow Mode активовано.\nЦе режим самоти. Тут немає лайків. Немає оплесків. Є лише ти проти себе.")
     elif text in ["мій профіль", "my profile"]:
         show_profile(message)
     elif text in ["план на сьогодні", "today’s plan"]:
-        bot.send_message(message.chat.id, "План на сьогодні:\n- Тренування: все тіло\n- Вода: 2 л\n- Їжа: білки + овочі\n- Shadow Mode: 1 сесія")
+        bot.send_message(message.chat.id, "📅 План на сьогодні:\n- 🏋️ Тренування: все тіло\n- 💧 Вода: 2 л\n- 🍽️ Їжа: білки + овочі\n- ⚔️ Shadow Mode: 1 сесія")
     else:
-        bot.send_message(message.chat.id, "Вибери опцію з меню або введи /menu")
+        bot.send_message(message.chat.id, "📍 Вибери опцію з меню або введи /menu")
 
 # === Очистка логов (тільки адмін) ===
 @bot.message_handler(commands=["clearlog"])
 def clear_log(message):
     if message.from_user.id == ADMIN_ID:
         open("bot.log", "w").close()
-        bot.send_message(message.chat.id, "Логи очищено.")
+        bot.send_message(message.chat.id, "🧹 Логи очищено.")
     else:
-        bot.send_message(message.chat.id, "У тебе немає доступу.")
+        bot.send_message(message.chat.id, "🚫 У тебе немає доступу.")
 
 # === Запуск ===
 print(f"{VERSION} запущено.")
