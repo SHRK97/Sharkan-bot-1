@@ -47,24 +47,40 @@ def start(message):
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
 # === Обработка языка + Меню ===
-@bot.callback_query_handler(func=lambda call: call.data.startswith("gender_"))
-def handle_gender(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
+def set_language(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    gender = call.data.split("_")[1]  # male or female
+    lang = call.data.split("_")[1]
 
-    user_profiles[user_id]["gender"] = gender
+    user_profiles[user_id] = user_profiles.get(user_id, {})
+    user_profiles[user_id]["language"] = lang
+    user_lang[user_id] = lang
     save_profiles()
 
-    lang = user_lang.get(user_id, "ua")
-    confirm = {
-        "ua": "✅ Стать збережено.",
-        "ru": "✅ Пол сохранён.",
-        "en": "✅ Gender saved."
-    }
+    if lang == "ua":
+        text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!\n👤 Обери свою стать:"
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("Я — чоловік", callback_data="gender_male"),
+            types.InlineKeyboardButton("Я — жінка", callback_data="gender_female")
+        )
+    elif lang == "ru":
+        text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!\n👤 Выбери свой пол:"
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("Я — мужчина", callback_data="gender_male"),
+            types.InlineKeyboardButton("Я — женщина", callback_data="gender_female")
+        )
+    else:
+        text = "✅ Your language is English. Welcome to SHARKAN BOT!\n👤 Select your gender:"
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("I am a man", callback_data="gender_male"),
+            types.InlineKeyboardButton("I am a woman", callback_data="gender_female")
+        )
 
-    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id)  # убираем кнопки
-    bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
+    bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=text, reply_markup=markup)
 
     # Показать меню сразу
     menu_from_id(chat_id, user_id)
