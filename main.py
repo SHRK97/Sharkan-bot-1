@@ -103,48 +103,106 @@ def menu_from_id(chat_id, user_id):
     gender = user_profiles.get(user_id, {}).get("gender", "male")
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
+    buttons = []
+
     if lang == "ua":
         if gender == "female":
             buttons = [
-                "🔥 Мій план", "🏋️ Тренування", "💖 Натхнення",
-                "⚔️ Shadow Mode", "👑 Мій шлях", "📊 Мій прогрес",
-                "🌟 Виклик", "💎 SHRK COINS", "⚙️ Налаштування"
+                "🔥 Мій план", "🏋️ Тренування",
+                "💖 Натхнення", "⚔️ Shadow Mode",
+                "👑 Мій шлях", "📊 Мій прогрес",
+                "🌟 Виклик", "💎 SHRK COINS",
+                "🛍 Магазин", "⏱ Режим БІГ",
+                "📚 Книги SHARKAN", "🎵 Музика",
+                "🥷 Бій з Тінню", "📈 Прогрес / Ранги",
+                "🤖 AI SHARKAN", "🎓 Поради від тренерів",
+                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
+                "📢 Канал SHARKAN", "❓ FAQ / Підтримка",
+                "📨 Співпраця", "🔒 Темна Зона",
+                "🧘‍♀️ Відновлення", "⚙️ Налаштування"
             ]
         else:
             buttons = [
-                "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація",
-                "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати",
-                "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"
+                "🔥 План на сьогодні", "🏋️ Тренування",
+                "🧠 Мотивація", "⚔️ Shadow Mode",
+                "👤 Мій профіль", "📊 Мої результати",
+                "🥇 Виклик", "🪙 SHRK COINS",
+                "🛍 Магазин", "⏱ Режим БІГ",
+                "📚 Книги SHARKAN", "🎵 Музика",
+                "🥷 Бій з Тінню", "📈 Статистика",
+                "🤖 AI SHARKAN", "🎓 Поради від тренерів",
+                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
+                "📢 Канал SHARKAN", "❓ Допомога / FAQ",
+                "📨 Співпраця", "🔒 Темна Зона",
+                "🧘 Відновлення", "⚙️ Налаштування"
             ]
     elif lang == "ru":
         if gender == "female":
             buttons = [
-                "🔥 Мой план", "🏋️ Тренировка", "💖 Вдохновение",
-                "⚔️ Shadow Mode", "👑 Мой путь", "📊 Мой прогресс",
-                "🌟 Вызов", "💎 SHRK COINS", "⚙️ Настройки"
+                "🔥 Мой план", "🏋️ Тренировка",
+                "💖 Вдохновение", "⚔️ Shadow Mode",
+                "👑 Мой путь", "📊 Мой прогресс",
+                "🌟 Вызов", "💎 SHRK COINS",
+                "🛍 Магазин", "⏱ Режим БЕГ",
+                "📚 Книги SHARKAN", "🎵 Музыка",
+                "🥷 Бой с Тенью", "📈 Прогресс / Ранги",
+                "🤖 AI SHARKAN", "🎓 Советы от тренеров",
+                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
+                "📢 Канал SHARKAN", "❓ FAQ / Поддержка",
+                "📨 Сотрудничество", "🔒 Тёмная Зона",
+                "🧘‍♀️ Восстановление", "⚙️ Настройки"
             ]
         else:
             buttons = [
-                "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация",
-                "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты",
-                "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"
+                "🔥 План на сегодня", "🏋️ Тренировка",
+                "🧠 Мотивация", "⚔️ Shadow Mode",
+                "👤 Мой профиль", "📊 Мои результаты",
+                "🥇 Вызов", "🪙 SHRK COINS",
+                "🛍 Магазин", "⏱ Режим БЕГ",
+                "📚 Книги SHARKAN", "🎵 Музыка",
+                "🥷 Бой с Тенью", "📈 Статистика",
+                "🤖 AI SHARKAN", "🎓 Советы от тренеров",
+                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
+                "📢 Канал SHARKAN", "❓ Помощь / FAQ",
+                "📨 Сотрудничество", "🔒 Тёмная Зона",
+                "🧘 Восстановление", "⚙️ Настройки"
             ]
-    else:
+    elif lang == "en":
         if gender == "female":
             buttons = [
-                "🔥 My Plan", "🏋️ Workout", "💖 Inspiration",
-                "⚔️ Shadow Mode", "👑 My Path", "📊 My Progress",
-                "🌟 Challenge", "💎 SHRK COINS", "⚙️ Settings"
+                "🔥 My Plan", "🏋️ Workout",
+                "💖 Inspiration", "⚔️ Shadow Mode",
+                "👑 My Path", "📊 My Progress",
+                "🌟 Challenge", "💎 SHRK COINS",
+                "🛍 Shop", "⏱ Running Mode",
+                "📚 SHARKAN Books", "🎵 Music",
+                "🥷 Shadow Fight", "📈 Progress / Ranks",
+                "🤖 AI SHARKAN", "🎓 Pro Trainer Tips",
+                "🏆 SHARKAN Ranking", "💬 SHARKAN Chat",
+                "📢 SHARKAN Channel", "❓ Help / FAQ",
+                "📨 Contact Us", "🔒 Dark Zone",
+                "🧘‍♀️ Recovery", "⚙️ Settings"
             ]
         else:
             buttons = [
-                "🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation",
-                "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results",
-                "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"
+                "🔥 Today's Plan", "🏋️ Workout",
+                "🧠 Motivation", "⚔️ Shadow Mode",
+                "👤 My Profile", "📊 My Results",
+                "🥇 Challenge", "🪙 SHRK COINS",
+                "🛍 Shop", "⏱ Running Mode",
+                "📚 SHARKAN Books", "🎵 Music",
+                "🥷 Shadow Fight", "📈 Statistics",
+                "🤖 AI SHARKAN", "🎓 Pro Trainer Tips",
+                "🏆 SHARKAN Ranking", "💬 SHARKAN Chat",
+                "📢 SHARKAN Channel", "❓ Help / FAQ",
+                "📨 Contact Us", "🔒 Dark Zone",
+                "🧘 Recovery", "⚙️ Settings"
             ]
+    else:
+        buttons = ["Main menu is not available in your language."]
 
     markup.add(*buttons)
-    bot.send_message(chat_id, "📋 Меню активовано:" if lang == "ua" else "📋 Меню активировано:" if lang == "ru" else "📋 Menu activated:", reply_markup=markup)
-
+    bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
+    
 print(f"{VERSION} запущено.")
 bot.infinity_polling()
