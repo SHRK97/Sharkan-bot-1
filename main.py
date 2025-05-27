@@ -131,7 +131,7 @@ def handle_gender(call):
     bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
     menu_from_id(chat_id, user_id)
 
-# === Текстовая мотивация ===
+# === Текстовая мотивация из JSON ===
 @bot.message_handler(func=lambda message: message.text.lower() in [
     "🧠 мотивація", "💖 натхнення", "🧠 мотивация", "💖 вдохновение",
     "🧠 motivation", "💖 inspiration"
@@ -139,13 +139,12 @@ def handle_gender(call):
 def motivation_handler(message):
     user_id = str(message.from_user.id)
     lang = user_lang.get(user_id, "ua")
+    phrases = motivation_data.get(lang, [])
 
-    if lang == "ru":
-        text = "🎧 Голос SHARKAN:\nТы рождён не для того, чтобы сдаваться.\nКаждый день — это битва. Ты выбираешь сторону."
-    elif lang == "en":
-        text = "🎧 Voice of SHARKAN:\nYou weren't born to quit.\nEvery day is a battle. Choose your side."
+    if phrases:
+        bot.send_message(message.chat.id, random.choice(phrases))
     else:
-        text = "🎧 Голос SHARKAN:\nТи не створений бути слабким.\nКожен день — це війна. І тільки дисципліна веде до перемоги."
+        bot.send_message(message.chat.id, "Немає мотивацій для твоєї мови.")
 
     bot.send_message(message.chat.id, text)
 
