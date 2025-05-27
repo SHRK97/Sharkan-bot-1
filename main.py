@@ -48,17 +48,26 @@ def start(message):
 
 # === Обработка языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
-def handle_language(call):
+def set_language(call):
+    chat_id = call.message.chat.id
     lang = call.data.split("_")[1]
-    user_id = str(call.from_user.id)
-    user_lang[user_id] = lang
-    logging.info(f"[LANG SELECTED] {user_id} = {lang}")
-    text = {
-        "ua": "Ласкаво просимо до SHARKAN BOT — твого особистого наставника сили, дисципліни і трансформації.\nНатисни /menu щоб почати.",
-        "ru": "Добро пожаловать в SHARKAN BOT — твой личный наставник дисциплины, силы и мотивации.\nНажми /menu чтобы начать.",
-        "en": "Welcome to SHARKAN BOT — your personal coach for strength, discipline and transformation.\nPress /menu to begin."
-    }
-    bot.edit_message_text(text[lang], chat_id=call.message.chat.id, message_id=call.message.message_id)
+    user_profiles[str(chat_id)] = user_profiles.get(str(chat_id), {})
+    user_profiles[str(chat_id)]["language"] = lang
+    save_profiles()
+
+    if lang == "ua":
+        welcome_text = "Твоя мова — українська. Вітаємо в SHARKAN BOT."
+    elif lang == "ru":
+        welcome_text = "Ваш язык — русский. Добро пожаловать в SHARKAN BOT."
+    elif lang == "en":
+        welcome_text = "Your language is English. Welcome to SHARKAN BOT."
+    else:
+        welcome_text = "Language set."
+
+    bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
+    
+    # Показать главное меню сразу
+    show_main_menu(chat_id)
 
 # === Главное меню ===
 @bot.message_handler(commands=["menu"])
