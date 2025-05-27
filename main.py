@@ -7,7 +7,7 @@ from telebot import TeleBot, types
 
 # === Загрузка мотиваций ===
 try:
-    with open("motivations_full.json", "r", encoding="utf-8") as f:
+    with open("motivations.json", "r", encoding="utf-8") as f:
         motivation_data = json.load(f)
 except Exception as e:
     motivation_data = {"ua": [], "ru": [], "en": []}
