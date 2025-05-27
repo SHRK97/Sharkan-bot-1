@@ -51,8 +51,8 @@ def start(message):
 def set_language(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    lang = call.data.split("_")[1]
-    
+    lang = call.data.split("_")[1]  # ← Вот тут lang определяется
+
     user_profiles[user_id] = user_profiles.get(user_id, {})
     user_profiles[user_id]["language"] = lang
     user_lang[user_id] = lang
@@ -69,18 +69,18 @@ def set_language(call):
 
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
 
-# Показати головне меню відразу
-markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    # Тепер lang вже є — і можна будувати меню:
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
-if lang == "ua":
-    buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
-elif lang == "ru":
-    buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
-else:
-    buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
+    if lang == "ua":
+        buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
+    elif lang == "ru":
+        buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
+    else:
+        buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
 
-markup.add(*buttons)
-bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
+    markup.add(*buttons)
+    bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
 
 # === /профіль — Створення профілю ===
 @bot.message_handler(commands=["профіль"])
