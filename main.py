@@ -47,27 +47,26 @@ def start(message):
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
 # === Обработка языка + Меню ===
-@bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
-def set_language(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("gender_"))
+def handle_gender(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    lang = call.data.split("_")[1]
+    gender = call.data.split("_")[1]  # male or female
 
-    user_profiles[user_id] = user_profiles.get(user_id, {})
-    user_profiles[user_id]["language"] = lang
-    user_lang[user_id] = lang
+    user_profiles[user_id]["gender"] = gender
     save_profiles()
 
-    if lang == "ua":
-        welcome_text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!\n👉 Введи /стать щоб обрати свій режим."
-    elif lang == "ru":
-        welcome_text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!\n👉 Введите /стать чтобы выбрать режим."
-    elif lang == "en":
-        welcome_text = "✅ Your language is English. Welcome to SHARKAN BOT!\n👉 Type /gender to select your mode."
-    else:
-        welcome_text = "✅ Language set."
+    lang = user_lang.get(user_id, "ua")
+    confirm = {
+        "ua": "✅ Стать збережено.",
+        "ru": "✅ Пол сохранён.",
+        "en": "✅ Gender saved."
+    }
 
-    bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=welcome_text)
+    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id)  # убираем кнопки
+    bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
+
+    # Показать меню сразу
     menu_from_id(chat_id, user_id)
 
 # === Команда /стать /gender ===
