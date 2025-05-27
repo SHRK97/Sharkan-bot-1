@@ -54,7 +54,7 @@ def set_language(call):
 
     if lang == "ua":
         text = "✅ Твоя мова — українська. Вітаємо в SHARKAN BOT!"
-👤 Обери свою стать:"
+"👤 Обери свою стать:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("Я — чоловік", callback_data="gender_male"),
@@ -62,7 +62,7 @@ def set_language(call):
         )
     elif lang == "ru":
         text = "✅ Ваш язык — русский. Добро пожаловать в SHARKAN BOT!"
-👤 Выбери свой пол:"
+"👤 Выбери свой пол:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("Я — мужчина", callback_data="gender_male"),
@@ -70,7 +70,7 @@ def set_language(call):
         )
     else:
         text = "✅ Your language is English. Welcome to SHARKAN BOT!"
-👤 Select your gender:"
+"👤 Select your gender:"
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("I am a man", callback_data="gender_male"),
