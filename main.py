@@ -76,11 +76,23 @@ def set_language(call):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
     if lang == "ua":
-        buttons = ["🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"]
+        buttons = [
+            "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація",
+            "⚔️ Shadow Mode", "👤 Мій профіль", "📊 Мої результати",
+            "🥇 Виклик", "🪙 SHRK COINS", "⚙️ Налаштування"
+        ]
     elif lang == "ru":
-        buttons = ["🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"]
+        buttons = [
+            "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация",
+            "⚔️ Shadow Mode", "👤 Мой профиль", "📊 Мои результаты",
+            "🥇 Вызов", "🪙 SHRK COINS", "⚙️ Настройки"
+        ]
     else:
-        buttons = ["🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"]
+        buttons = [
+            "🔥 Today’s Plan", "🏋️ Workout", "🧠 Motivation",
+            "⚔️ Shadow Mode", "👤 My Profile", "📊 My Results",
+            "🥇 Challenge", "🪙 SHRK COINS", "⚙️ Settings"
+        ]
 
     markup.add(*buttons)
     bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
