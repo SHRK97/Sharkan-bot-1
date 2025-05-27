@@ -98,6 +98,42 @@ def handle_gender(call):
     bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
     menu_from_id(chat_id, user_id)
 
+# === 🧠 Мотивація / 💖 Натхнення ===
+@bot.message_handler(func=lambda message: message.text.lower() in [
+    "🧠 мотивація", "💖 натхнення", "🧠 мотивация", "💖 вдохновение",
+    "🧠 motivation", "💖 inspiration"
+])
+def motivation_handler(message):
+    user_id = str(message.from_user.id)
+    lang = user_lang.get(user_id, "ua")
+
+    if lang == "ru":
+        text = "🎧 Голос SHARKAN:\nТы рождён не для того, чтобы сдаваться.\nКаждый день — это битва. Ты выбираешь сторону."
+    elif lang == "en":
+        text = "🎧 Voice of SHARKAN:\nYou weren't born to quit.\nEvery day is a battle. Choose your side."
+    else:
+        text = "🎧 Голос SHARKAN:\nТи не створений бути слабким.\nКожен день — це війна. І тільки дисципліна веде до перемоги."
+
+    bot.send_message(message.chat.id, text)
+
+    try:
+        with open("audio/motivation.mp3", "rb") as audio:
+            bot.send_audio(message.chat.id, audio)
+    except:
+        bot.send_message(message.chat.id, "⚠️ Аудіофайл мотивації не знайдено.")
+
+    try:
+        with open("media/motivation.jpg", "rb") as photo:
+            bot.send_photo(message.chat.id, photo)
+    except:
+        bot.send_message(message.chat.id, "⚠️ Фото мотивації не знайдено.")
+
+    try:
+        with open("media/motivation.mp4", "rb") as video:
+            bot.send_video(message.chat.id, video, caption="🔥 SHARKAN FOCUS MODE")
+    except:
+        pass
+
 def menu_from_id(chat_id, user_id):
     lang = user_lang.get(user_id, "ua")
     gender = user_profiles.get(user_id, {}).get("gender", "male")
