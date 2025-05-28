@@ -195,6 +195,7 @@ def menu_from_id(chat_id, user_id):
     else:
         buttons = ["Main menu is not available in your language."]
 
+# добавляем кнопки по 2 в ряд
 for i in range(0, len(buttons), 2):
     markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
 
