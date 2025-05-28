@@ -174,6 +174,10 @@ def menu_from_id(chat_id, user_id):
                 "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ Допомога / FAQ",
                 "📨 Співпраця", "🔒 Темна Зона", "🧘 Відновлення", "⚙️ Налаштування"
             ]
+            # добавляем кнопки по 2 в ряд
+for i in range(0, len(buttons), 2):
+    markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
+
     elif lang == "ru":
         buttons = [
             "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode",
@@ -183,6 +187,10 @@ def menu_from_id(chat_id, user_id):
             "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ Помощь / FAQ",
             "📨 Сотрудничество", "🔒 Тёмная Зона", "🧘 Восстановление", "⚙️ Настройки"
         ]
+        # добавляем кнопки по 2 в ряд
+for i in range(0, len(buttons), 2):
+    markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
+    
     elif lang == "en":
         buttons = [
             "🔥 Today's Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode",
@@ -192,12 +200,13 @@ def menu_from_id(chat_id, user_id):
             "🏆 SHARKAN Ranking", "💬 SHARKAN Chat", "📢 SHARKAN Channel", "❓ Help / FAQ",
             "📨 Contact Us", "🔒 Dark Zone", "🧘 Recovery", "⚙️ Settings"
         ]
+        # добавляем кнопки по 2 в ряд
+for i in range(0, len(buttons), 2):
+    markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
+    
     else:
         buttons = ["Main menu is not available in your language."]
 
-# добавляем кнопки по 2 в ряд
-for i in range(0, len(buttons), 2):
-    markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
 
     bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
 
