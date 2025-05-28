@@ -195,8 +195,8 @@ def menu_from_id(chat_id, user_id):
     else:
         buttons = ["Main menu is not available in your language."]
 
-    for btn in buttons:
-        markup.add(types.KeyboardButton(btn))
+for i in range(0, len(buttons), 2):
+    markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
 
     bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
 
