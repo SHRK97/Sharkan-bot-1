@@ -13,6 +13,14 @@ except Exception as e:
     motivation_data = {"ua": [], "ru": [], "en": []}
     logging.error(f"[LOAD_MOTIVATION_ERROR] {e}")
 
+# === Загрузка советов от тренеров ===
+try:
+    with open("coaches_tips.json", "r", encoding="utf-8") as f:
+        coaches_data = json.load(f)
+except Exception as e:
+    coaches_data = {"ua": [], "ru": [], "en": []}
+    logging.error(f"[LOAD_COACHES_ERROR] {e}")
+    
 # === Переменная окружения ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
@@ -147,6 +155,27 @@ def motivation_handler(message):
         bot.send_message(message.chat.id, "Немає мотивацій для твоєї мови.")
 
     bot.send_message(message.chat.id, text)
+
+# === Советы от тренеров ===
+@bot.message_handler(func=lambda message: message.text.lower() in [
+    "🎓 поради від тренерів", "🎓 советы от тренеров", "🎓 pro trainer tips"
+])
+def coach_tip_handler(message):
+    user_id = str(message.from_user.id)
+    lang = user_lang.get(user_id, "ua")
+    tips = coaches_data.get(lang, [])
+
+    if not tips:
+        bot.send_message(message.chat.id, "❌ Немає порад для обраної мови.")
+        return
+
+    coach = random.choice(tips)
+    name = coach.get("name", "Без імені")
+    bio = coach.get(f"bio_{lang}", coach.get("bio", ""))
+    tip = coach.get(f"tip_{lang}", coach.get("tip", ""))
+
+    text = f"👤 *{name}*\n\n🧬 _{bio}_\n\n{tip}"
+    bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
 # === Главное меню ===
 def menu_from_id(chat_id, user_id):
