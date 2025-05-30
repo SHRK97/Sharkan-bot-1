@@ -187,61 +187,61 @@ def menu_from_id(chat_id, user_id):
 
     if lang == "ua":
         if gender == "female":
-            buttons = [
-                "🔥 Мій план", "🏋️ Тренування", "💖 Натхнення", "⚔️ Shadow Mode",
-                "👑 Мій шлях", "📊 Мій прогрес", "🌟 Виклик", "💎 SHRK COINS",
-                "🛍 Магазин", "⏱ Режим БІГ", "📚 Книги SHARKAN", "🎵 Музика",
-                "🥷 Бій з Тінню", "📈 Прогрес / Ранги", "🤖 AI SHARKAN", "🎓 Поради від тренерів",
-                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ FAQ / Підтримка",
-                "📨 Співпраця", "🔒 Темна Зона", "🧘‍♀️ Відновлення", "⚙️ Налаштування"
-            ]
+buttons = [
+    "🔥 Мій план", "🏋️ Тренування", "💖 Натхнення", "⚔️ Shadow Mode",
+    "🥷 Бій з Тінню", "📚 Книги SHARKAN", "🎓 Поради від тренерів", "🤖 AI SHARKAN",
+    "🌟 Виклик", "💎 SHRK COINS", "📊 Мій прогрес", "📈 Прогрес / Ранги",
+    "🏆 Рейтинг SHARKAN", "🎵 Музика", "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+    "🧘‍♀️ Відновлення", "🔒 Темна Зона", "⚙️ Налаштування", "❓ FAQ / Підтримка",
+    "📨 Співпраця", "👑 Мій шлях", "🛍 Магазин", "⏱ Режим БІГ"
+]
         else:
-            buttons = [
-                "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode",
-                "👤 Мій профіль", "📊 Мої результати", "🥇 Виклик", "🪙 SHRK COINS",
-                "🛍 Магазин", "⏱ Режим БІГ", "📚 Книги SHARKAN", "🎵 Музика",
-                "🥷 Бій з Тінню", "📈 Статистика", "🤖 AI SHARKAN", "🎓 Поради від тренерів",
-                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ Допомога / FAQ",
-                "📨 Співпраця", "🔒 Темна Зона", "🧘 Відновлення", "⚙️ Налаштування"
-            ]
+buttons = [
+    "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⚔️ Shadow Mode",
+    "🥷 Бій з Тінню", "📚 Книги SHARKAN", "🎓 Поради від тренерів", "🤖 AI SHARKAN",
+    "🥇 Виклик", "🪙 SHRK COINS", "📊 Мої результати", "📈 Статистика",
+    "🏆 Рейтинг SHARKAN", "🎵 Музика", "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+    "🧘 Відновлення", "🔒 Темна Зона", "⚙️ Налаштування", "❓ Допомога / FAQ",
+    "📨 Співпраця", "👤 Мій профіль", "🛍 Магазин", "⏱ Режим БІГ"
+]
     elif lang == "ru":
         if gender == "female":
-            buttons = [
-                "🔥 Мой план", "🏋️ Тренировка", "💖 Вдохновение", "⚔️ Shadow Mode",
-                "👑 Мой путь", "📊 Мой прогресс", "🌟 Вызов", "💎 SHRK COINS",
-                "🛍 Магазин", "⏱ Режим БЕГ", "📚 Книги SHARKAN", "🎵 Музыка",
-                "🥷 Бой с Тенью", "📈 Прогресс / Ранги", "🤖 AI SHARKAN", "🎓 Советы от тренеров",
-                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ FAQ / Поддержка",
-                "📨 Сотрудничество", "🔒 Тёмная Зона", "🧘‍♀️ Восстановление", "⚙️ Настройки"
-            ]
+buttons = [
+    "🔥 Мой план", "🏋️ Тренировка", "💖 Вдохновение", "⚔️ Shadow Mode",
+    "🥷 Бой с Тенью", "📚 Книги SHARKAN", "🎓 Советы от тренеров", "🤖 AI SHARKAN",
+    "🌟 Вызов", "💎 SHRK COINS", "📊 Мой прогресс", "📈 Прогресс / Ранги",
+    "🏆 Рейтинг SHARKAN", "🎵 Музыка", "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+    "🧘‍♀️ Восстановление", "🔒 Тёмная Зона", "⚙️ Настройки", "❓ FAQ / Поддержка",
+    "📨 Сотрудничество", "👑 Мой путь", "🛍 Магазин", "⏱ Режим БЕГ"
+]
         else:
-            buttons = [
-                "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode",
-                "👤 Мой профиль", "📊 Мои результаты", "🥇 Вызов", "🪙 SHRK COINS",
-                "🛍 Магазин", "⏱ Режим БЕГ", "📚 Книги SHARKAN", "🎵 Музыка",
-                "🥷 Бой с Тенью", "📈 Статистика", "🤖 AI SHARKAN", "🎓 Советы от тренеров",
-                "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN", "📢 Канал SHARKAN", "❓ Помощь / FAQ",
-                "📨 Сотрудничество", "🔒 Тёмная Зона", "🧘 Восстановление", "⚙️ Настройки"
-            ]
+buttons = [
+    "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⚔️ Shadow Mode",
+    "🥷 Бой с Тенью", "📚 Книги SHARKAN", "🎓 Советы от тренеров", "🤖 AI SHARKAN",
+    "🥇 Вызов", "🪙 SHRK COINS", "📊 Мои результаты", "📈 Статистика",
+    "🏆 Рейтинг SHARKAN", "🎵 Музыка", "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+    "🧘 Восстановление", "🔒 Тёмная Зона", "⚙️ Настройки", "❓ Помощь / FAQ",
+    "📨 Сотрудничество", "👤 Мой профиль", "🛍 Магазин", "⏱ Режим БЕГ"
+]
     elif lang == "en":
         if gender == "female":
-            buttons = [
-                "🔥 My Plan", "🏋️ Workout", "💖 Inspiration", "⚔️ Shadow Mode",
-                "👑 My Path", "📊 My Progress", "🌟 Challenge", "💎 SHRK COINS",
-                "🛍 Shop", "⏱ Running Mode", "📚 SHARKAN Books", "🎵 Music",
-                "🥷 Shadow Fight", "📈 Progress / Ranks", "🤖 AI SHARKAN", "🎓 Pro Trainer Tips",
-                "🏆 SHARKAN Ranking", "💬 SHARKAN Chat", "📢 SHARKAN Channel", "❓ Help / FAQ",
-                "📨 Contact Us", "🔒 Dark Zone", "🧘‍♀️ Recovery", "⚙️ Settings"
-            ]
+buttons = [
+    "🔥 My Plan", "🏋️ Workout", "💖 Inspiration", "⚔️ Shadow Mode",
+    "🥷 Shadow Fight", "📚 SHARKAN Books", "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
+    "🌟 Challenge", "💎 SHRK COINS", "📊 My Progress", "📈 Progress / Ranks",
+    "🏆 SHARKAN Ranking", "🎵 Music", "💬 SHARKAN Chat", "📢 SHARKAN Channel",
+    "🧘‍♀️ Recovery", "🔒 Dark Zone", "⚙️ Settings", "❓ Help / FAQ",
+    "📨 Contact Us", "👑 My Path", "🛍 Shop", "⏱ Running Mode"
+]
         else:
-            buttons = [
-                "🔥 Today's Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode",
-                "👤 My Profile", "📊 My Results", "🥇 Challenge", "🪙 SHRK COINS",
-                "🛍 Shop", "⏱ Running Mode", "📚 SHARKAN Books", "🎵 Music",
-                "🥷 Shadow Fight", "📈 Statistics", "🤖 AI SHARKAN", "🎓 Pro Trainer Tips",
-                "🏆 SHARKAN Ranking", "💬 SHARKAN Chat", "📢 SHARKAN Channel", "❓ Help / FAQ",
-                "📨 Contact Us", "🔒 Dark Zone", "🧘 Recovery", "⚙️ Settings"
-            ]
+buttons = [
+    "🔥 Today's Plan", "🏋️ Workout", "🧠 Motivation", "⚔️ Shadow Mode",
+    "🥷 Shadow Fight", "📚 SHARKAN Books", "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
+    "🥇 Challenge", "🪙 SHRK COINS", "📊 My Results", "📈 Statistics",
+    "🏆 SHARKAN Ranking", "🎵 Music", "💬 SHARKAN Chat", "📢 SHARKAN Channel",
+    "🧘 Recovery", "🔒 Dark Zone", "⚙️ Settings", "❓ Help / FAQ",
+    "📨 Contact Us", "👤 My Profile", "🛍 Shop", "⏱ Running Mode"
+]
 
     # Двухрядное добавление кнопок
     for i in range(0, len(buttons), 2):
