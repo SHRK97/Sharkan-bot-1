@@ -177,86 +177,112 @@ def coach_tip_handler(message):
     text = f"👤 *{name}*\n\n🧬 _{bio}_\n\n{tip}"
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
-# === Оновлене головне меню з row_width=3 ===
+# === Главное меню ===
 def menu_from_id(chat_id, user_id):
     lang = user_lang.get(user_id, "ua")
     gender = user_profiles.get(user_id, {}).get("gender", "male")
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
     buttons = []
 
     if lang == "ua":
         if gender == "female":
             buttons = [
-                "🔥 Мій план", "🏋️ Тренування", "💖 Натхнення",
-                "🤖 AI SHARKAN", "🎓 Поради від тренерів", "🌟 Виклик",
-                "📊 Мій прогрес", "📈 Прогрес / Ранги", "🥷 Бій з Тінню",
-                "📚 Книги SHARKAN", "🎵 Музика", "⏱ Режим БІГ",
-                "🛍 Магазин", "💎 SHRK COINS", "👑 Мій шлях",
-                "⚔️ Shadow Mode", "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
-                "📢 Канал SHARKAN", "🧘‍♀️ Відновлення", "🔒 Темна Зона",
-                "⚙️ Налаштування", "❓ FAQ / Підтримка", "📨 Співпраця"
+                "🔥 Мій план", "🏋️ Тренування",
+                "💖 Натхнення", "⚔️ Shadow Mode",
+                "🥷 Бій з Тінню", "📚 Книги SHARKAN",
+                "🎓 Поради від тренерів", "🤖 AI SHARKAN",
+                "🌟 Виклик", "💎 SHRK COINS",
+                "📊 Мій прогрес", "📈 Прогрес / Ранги",
+                "🏆 Рейтинг SHARKAN", "🎵 Музика",
+                "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+                "🧘‍♀️ Відновлення", "🔒 Темна Зона",
+                "⚙️ Налаштування", "❓ FAQ / Підтримка",
+                "📨 Співпраця", "👑 Мій шлях",
+                "🛍 Магазин", "⏱ Режим БІГ"
             ]
         else:
             buttons = [
-                "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація",
-                "🤖 AI SHARKAN", "🎓 Поради від тренерів", "🥇 Виклик",
-                "📊 Мої результати", "📈 Статистика", "🥷 Бій з Тінню",
-                "📚 Книги SHARKAN", "🎵 Музика", "⏱ Режим БІГ",
-                "🛍 Магазин", "🪙 SHRK COINS", "👤 Мій профіль",
-                "⚔️ Shadow Mode", "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
-                "📢 Канал SHARKAN", "🧘 Відновлення", "🔒 Темна Зона",
-                "⚙️ Налаштування", "❓ Допомога / FAQ", "📨 Співпраця"
+                "🔥 План на сьогодні", "🏋️ Тренування",
+                "🧠 Мотивація", "⚔️ Shadow Mode",
+                "🥷 Бій з Тінню", "📚 Книги SHARKAN",
+                "🎓 Поради від тренерів", "🤖 AI SHARKAN",
+                "🥇 Виклик", "🪙 SHRK COINS",
+                "📊 Мої результати", "📈 Статистика",
+                "🏆 Рейтинг SHARKAN", "🎵 Музика",
+                "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+                "🧘 Відновлення", "🔒 Темна Зона",
+                "⚙️ Налаштування", "❓ Допомога / FAQ",
+                "📨 Співпраця", "👤 Мій профіль",
+                "🛍 Магазин", "⏱ Режим БІГ"
             ]
     elif lang == "ru":
         if gender == "female":
             buttons = [
-                "🔥 Мой план", "🏋️ Тренировка", "💖 Вдохновение",
-                "🤖 AI SHARKAN", "🎓 Советы от тренеров", "🌟 Вызов",
-                "📊 Мой прогресс", "📈 Прогресс / Ранги", "🥷 Бой с Тенью",
-                "📚 Книги SHARKAN", "🎵 Музыка", "⏱ Режим БЕГ",
-                "🛍 Магазин", "💎 SHRK COINS", "👑 Мой путь",
-                "⚔️ Shadow Mode", "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
-                "📢 Канал SHARKAN", "🧘‍♀️ Восстановление", "🔒 Тёмная Зона",
-                "⚙️ Настройки", "❓ FAQ / Поддержка", "📨 Сотрудничество"
+                "🔥 Мой план", "🏋️ Тренировка",
+                "💖 Вдохновение", "⚔️ Shadow Mode",
+                "🥷 Бой с Тенью", "📚 Книги SHARKAN",
+                "🎓 Советы от тренеров", "🤖 AI SHARKAN",
+                "🌟 Вызов", "💎 SHRK COINS",
+                "📊 Мой прогресс", "📈 Прогресс / Ранги",
+                "🏆 Рейтинг SHARKAN", "🎵 Музыка",
+                "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+                "🧘‍♀️ Восстановление", "🔒 Тёмная Зона",
+                "⚙️ Настройки", "❓ FAQ / Поддержка",
+                "📨 Сотрудничество", "👑 Мой путь",
+                "🛍 Магазин", "⏱ Режим БЕГ"
             ]
         else:
             buttons = [
-                "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация",
-                "🤖 AI SHARKAN", "🎓 Советы от тренеров", "🥇 Вызов",
-                "📊 Мои результаты", "📈 Статистика", "🥷 Бой с Тенью",
-                "📚 Книги SHARKAN", "🎵 Музыка", "⏱ Режим БЕГ",
-                "🛍 Магазин", "🪙 SHRK COINS", "👤 Мой профиль",
-                "⚔️ Shadow Mode", "🏆 Рейтинг SHARKAN", "💬 Чат SHARKAN",
-                "📢 Канал SHARKAN", "🧘 Восстановление", "🔒 Тёмная Зона",
-                "⚙️ Настройки", "❓ Помощь / FAQ", "📨 Сотрудничество"
+                "🔥 План на сегодня", "🏋️ Тренировка",
+                "🧠 Мотивация", "⚔️ Shadow Mode",
+                "🥷 Бой с Тенью", "📚 Книги SHARKAN",
+                "🎓 Советы от тренеров", "🤖 AI SHARKAN",
+                "🥇 Вызов", "🪙 SHRK COINS",
+                "📊 Мои результаты", "📈 Статистика",
+                "🏆 Рейтинг SHARKAN", "🎵 Музыка",
+                "💬 Чат SHARKAN", "📢 Канал SHARKAN",
+                "🧘 Восстановление", "🔒 Тёмная Зона",
+                "⚙️ Настройки", "❓ Помощь / FAQ",
+                "📨 Сотрудничество", "👤 Мой профиль",
+                "🛍 Магазин", "⏱ Режим БЕГ"
             ]
     elif lang == "en":
         if gender == "female":
             buttons = [
-                "🔥 My Plan", "🏋️ Workout", "💖 Inspiration",
-                "🤖 AI SHARKAN", "🎓 Pro Trainer Tips", "🌟 Challenge",
-                "📊 My Progress", "📈 Progress / Ranks", "🥷 Shadow Fight",
-                "📚 SHARKAN Books", "🎵 Music", "⏱ Running Mode",
-                "🛍 Shop", "💎 SHRK COINS", "👑 My Path",
-                "⚔️ Shadow Mode", "🏆 SHARKAN Ranking", "💬 SHARKAN Chat",
-                "📢 SHARKAN Channel", "🧘‍♀️ Recovery", "🔒 Dark Zone",
-                "⚙️ Settings", "❓ Help / FAQ", "📨 Contact Us"
+                "🔥 My Plan", "🏋️ Workout",
+                "💖 Inspiration", "⚔️ Shadow Mode",
+                "🥷 Shadow Fight", "📚 SHARKAN Books",
+                "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
+                "🌟 Challenge", "💎 SHRK COINS",
+                "📊 My Progress", "📈 Progress / Ranks",
+                "🏆 SHARKAN Ranking", "🎵 Music",
+                "💬 SHARKAN Chat", "📢 SHARKAN Channel",
+                "🧘‍♀️ Recovery", "🔒 Dark Zone",
+                "⚙️ Settings", "❓ Help / FAQ",
+                "📨 Contact Us", "👑 My Path",
+                "🛍 Shop", "⏱ Running Mode"
             ]
         else:
             buttons = [
-                "🔥 Today's Plan", "🏋️ Workout", "🧠 Motivation",
-                "🤖 AI SHARKAN", "🎓 Pro Trainer Tips", "🥇 Challenge",
-                "📊 My Results", "📈 Statistics", "🥷 Shadow Fight",
-                "📚 SHARKAN Books", "🎵 Music", "⏱ Running Mode",
-                "🛍 Shop", "🪙 SHRK COINS", "👤 My Profile",
-                "⚔️ Shadow Mode", "🏆 SHARKAN Ranking", "💬 SHARKAN Chat",
-                "📢 SHARKAN Channel", "🧘 Recovery", "🔒 Dark Zone",
-                "⚙️ Settings", "❓ Help / FAQ", "📨 Contact Us"
+                "🔥 Today's Plan", "🏋️ Workout",
+                "🧠 Motivation", "⚔️ Shadow Mode",
+                "🥷 Shadow Fight", "📚 SHARKAN Books",
+                "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
+                "🥇 Challenge", "🪙 SHRK COINS",
+                "📊 My Results", "📈 Statistics",
+                "🏆 SHARKAN Ranking", "🎵 Music",
+                "💬 SHARKAN Chat", "📢 SHARKAN Channel",
+                "🧘 Recovery", "🔒 Dark Zone",
+                "⚙️ Settings", "❓ Help / FAQ",
+                "📨 Contact Us", "👤 My Profile",
+                "🛍 Shop", "⏱ Running Mode"
             ]
 
-    markup.add(*buttons)
-    bot.send_message(chat_id, "🔘 Меню оновлено", reply_markup=markup)
+    for i in range(0, len(buttons), 2):
+        markup.row(*buttons[i:i+2])
+
+    bot.send_message(chat_id, "🧠 Обери розділ:", reply_markup=markup)
 
     # Двухрядное добавление кнопок
     for i in range(0, len(buttons), 2):
