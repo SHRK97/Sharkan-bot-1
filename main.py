@@ -279,16 +279,8 @@ def menu_from_id(chat_id, user_id):
                 "🛍 Shop", "⏱ Running Mode"
             ]
 
-    for i in range(0, len(buttons), 2):
-        markup.row(*buttons[i:i+2])
-
+    markup.add(*buttons)
     bot.send_message(chat_id, "🧠 Обери розділ:", reply_markup=markup)
-
-    # Двухрядное добавление кнопок
-    for i in range(0, len(buttons), 2):
-        markup.add(*[types.KeyboardButton(b) for b in buttons[i:i+2]])
-
-    bot.send_message(chat_id, "📋 Меню активовано:", reply_markup=markup)
 
 # === Запуск ===
 print(f"{VERSION} запущено.")
