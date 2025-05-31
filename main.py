@@ -53,6 +53,21 @@ def save_profiles():
     except Exception as e:
         logging.error(f"[SAVE_PROFILE_ERROR] {e}")
 
+# === Статистика пробіжок та монети ===
+run_stats_file = "run_stats.json"
+if os.path.exists(run_stats_file):
+    with open(run_stats_file, "r") as f:
+        run_stats = json.load(f)
+else:
+    run_stats = {}
+
+active_runs = {}
+
+def save_all():
+    save_profiles()
+    with open(run_stats_file, "w") as f:
+        json.dump(run_stats, f, indent=4, ensure_ascii=False)
+
 # === Языки ===
 LANGUAGES = {'ua': 'Українська', 'ru': 'Русский', 'en': 'English'}
 user_lang = {}
@@ -70,6 +85,141 @@ def start(message):
     for code, name in LANGUAGES.items():
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text == "⏱ Режим БІГ" or msg.text == "⏱ Running Mode")
+def run_menu(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("🏁 Почати біг", "🛑 Завершити біг")
+    markup.add("📊 Мої результати", "💰 SHRK COINS")
+    bot.send_message(message.chat.id, "Обери дію:", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text == "🏁 Почати біг")
+def start_run(message):
+    user_id = str(message.from_user.id)
+    active_runs[user_id] = {"start": datetime.now()}
+    bot.send_message(message.chat.id, "🏃‍♂️ Біг розпочато!\n⏱ Тривалість: 00:00:00\n🔥 Калорії: 0\nНатисни \"🛑 Завершити біг\", коли закінчиш.")
+
+@bot.message_handler(func=lambda msg: msg.text == "🛑 Завершити біг")
+def stop_run(message):
+    user_id = str(message.from_user.id)
+    if user_id not in active_runs:
+        bot.send_message(message.chat.id, "❗ Ти ще не почав біг.")
+        return
+
+    weight = user_profiles.get(user_id, {}).get("weight", 70)
+    start_time = active_runs[user_id]["start"]
+    end_time = datetime.now()
+    duration = end_time - start_time
+    minutes = int(duration.total_seconds() / 60)
+    calories = int(weight * minutes * 0.087)
+
+    run_entry = {
+        "date": start_time.strftime("%Y-%m-%d"),
+        "duration_minutes": minutes,
+        "calories": calories
+    }
+
+    run_stats.setdefault(user_id, []).append(run_entry)
+    del active_runs[user_id]
+
+    profile = user_profiles.setdefault(user_id, {"coins": 0})
+    reward = 0
+    if len(run_stats[user_id]) == 1:
+        reward += 10
+        profile["last_reward"] = "+10 за першу пробіжку"
+    if minutes >= 30:
+        reward += 20
+        profile["last_reward"] = "+20 за пробіжку понад 30 хв"
+
+    dates = sorted([datetime.strptime(r["date"], "%Y-%m-%d") for r in run_stats[user_id]], reverse=True)
+    streak = 1
+    for i in range(1, len(dates)):
+        if (dates[i - 1] - dates[i]).days == 1:
+            streak += 1
+        else:
+            break
+    if streak >= 3:
+        reward += 30
+        profile["last_reward"] = "+30 за стрик 3+ днів"
+    if len(run_stats[user_id]) >= 11:
+        reward += 50
+        profile["last_reward"] = "+50 за рівень Звір"
+
+    profile["coins"] += reward
+    save_all()
+
+    bot.send_message(message.chat.id, f"✅ Біг завершено!\n⏳ Тривалість: {minutes} хв\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS")
+
+@bot.message_handler(func=lambda msg: msg.text == "📊 Мої результати" or msg.text == "📊 My Results")
+def show_results(message):
+    user_id = str(message.from_user.id)
+    stats = run_stats.get(user_id, [])
+    today = datetime.now()
+    today_str = today.strftime("%Y-%m-%d")
+
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+    half_year_ago = today - timedelta(days=183)
+    year_ago = today - timedelta(days=365)
+
+    runs_today = [r for r in stats if r["date"] == today_str]
+    runs_week = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= week_ago]
+    runs_month = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= month_ago]
+    runs_half_year = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= half_year_ago]
+    runs_year = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= year_ago]
+
+    streak = 1
+    dates = sorted([datetime.strptime(r["date"], "%Y-%m-%d") for r in stats], reverse=True)
+    for i in range(1, len(dates)):
+        if (dates[i - 1] - dates[i]).days == 1:
+            streak += 1
+        else:
+            break
+
+    total_runs = len(stats)
+    total_calories = sum(r["calories"] for r in stats)
+    if total_runs >= 11:
+        rank = "🥇 Звір"
+    elif total_runs >= 4:
+        rank = "🥈 SHARKAN учень"
+    else:
+        rank = "🥉 Новачок"
+
+    text = f"""
+📊 Мої результати
+
+🏃‍♂️ SHARKAN RUN:
+📅 Сьогодні: {len(runs_today)} пробіжка(и)
+🗓 За тиждень: {len(runs_week)} пробіжок
+📆 За місяць: {len(runs_month)} пробіжок
+🕓 За пів року: {len(runs_half_year)} пробіжок
+📈 За рік: {len(runs_year)} пробіжок
+
+🔥 Калорій спалено всього: {total_calories}
+🎯 Стрик: {streak} днів підряд
+🏅 Ранг: {rank}
+"""
+    bot.send_message(message.chat.id, text.strip())
+
+@bot.message_handler(func=lambda msg: msg.text == "💰 SHRK COINS" or msg.text == "🪙 SHRK COINS")
+def show_coins(message):
+    user_id = str(message.from_user.id)
+    profile = user_profiles.get(user_id, {"coins": 0})
+    coins = profile.get("coins", 0)
+    reward = profile.get("last_reward", "–")
+
+    text = f"""
+💰 SHRK COINS
+
+Поточний баланс: {coins} монет
+Остання нагорода: {reward}
+
+🔓 Доступно:
+• Темна Зона — 150 монет
+• Мотивація SHARKAN — 30 монет
+• Челенджі — 50–100 монет
+"""
+    bot.send_message(message.chat.id, text.strip())
 
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
