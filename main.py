@@ -190,6 +190,11 @@ def stop_run(message):
     profile["coins"] += reward
     save_all()
 
+duration = end_time - start_time
+total_seconds = int(duration.total_seconds())
+minutes = total_seconds // 60
+seconds = total_seconds % 60
+
 text = (
     f"✅ Біг завершено!\n"
     f"⏱ Час: {minutes:02d}:{seconds:02d}\n"
