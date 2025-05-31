@@ -97,7 +97,10 @@ def run_menu(message):
 def start_run(message):
     user_id = str(message.from_user.id)
     active_runs[user_id] = {"start": datetime.now()}
-    bot.send_message(message.chat.id, "🏃‍♂️ Біг розпочато!\n⏱ Тривалість: 00:00:00\n🔥 Калорії: 0\nНатисни \"🛑 Завершити біг\", коли закінчиш.")
+    bot.send_message(
+        message.chat.id,
+        "🏃‍♂️ Біг розпочато!\n⏱ Таймер запущено автоматично.\nНатисни 🛑 Завершити біг, коли закінчиш."
+    )
 
 @bot.message_handler(func=lambda msg: msg.text == "🛑 Завершити біг")
 def stop_run(message):
@@ -110,8 +113,11 @@ def stop_run(message):
     start_time = active_runs[user_id]["start"]
     end_time = datetime.now()
     duration = end_time - start_time
-    minutes = int(duration.total_seconds() / 60)
-    calories = int(weight * minutes * 0.087)
+    total_seconds = int(duration.total_seconds())
+minutes = total_seconds // 60
+seconds = total_seconds % 60
+formatted_time = f"{minutes:02d}:{seconds:02d}"
+    calories = int(weight * (total_seconds / 60) * 0.087)
 
     run_entry = {
         "date": start_time.strftime("%Y-%m-%d"),
@@ -148,7 +154,10 @@ def stop_run(message):
     profile["coins"] += reward
     save_all()
 
-    bot.send_message(message.chat.id, f"✅ Біг завершено!\n⏳ Тривалість: {minutes} хв\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS")
+bot.send_message(
+    message.chat.id,
+    f"✅ Біг завершено!\n⏱ Час: {formatted_time}\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS"
+)
 
 @bot.message_handler(func=lambda msg: msg.text == "📊 Мої результати" or msg.text == "📊 My Results")
 def show_results(message):
