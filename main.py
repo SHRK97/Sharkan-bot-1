@@ -190,6 +190,7 @@ def stop_run(message):
     profile["coins"] += reward
     save_all()
     
+user_id = str(message.from_user.id)    
 start_time = running_sessions[user_id]["start"]
 end_time = datetime.now()
 duration = end_time - start_time
