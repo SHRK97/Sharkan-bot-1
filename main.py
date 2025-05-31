@@ -86,58 +86,63 @@ def start(message):
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
-# === Режим БІГ SHARKAN ===
+# === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
 from threading import Timer
 
 running_sessions = {}
-
-@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
-def run_menu(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🏁 Почати біг", "⛔️ Завершити біг")
-    markup.add("📊 Мої результати", "⬅️ Головне меню")
-    bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
-
-@bot.message_handler(func=lambda msg: msg.text.startswith("🏁"))
-def start_run(message):
-    user_id = str(message.from_user.id)
-    running_sessions[user_id] = {
-        "start": datetime.now(),
-        "message_id": None
-    }
-    msg = bot.send_message(message.chat.id, "🏃 Біг розпочато!\n⏱ Таймер: 00:00")
-    msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
-    running_sessions[user_id]["message_id"] = msg.message_id
-    update_timer(message.chat.id, user_id)
 
 def get_run_markup():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("⛔️ Завершити біг")
     return markup
 
+@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
+def run_menu(message):
+    lang = user_profiles.get(str(message.from_user.id), {}).get("language", "ua")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if lang == "ru":
+        markup.add("🏁 Начать бег", "⛔️ Завершить бег")
+        markup.add("📊 Мои результаты", "⬅️ Главное меню")
+        text = "🏃 Выбери действие для SHARKAN RUN:"
+    elif lang == "en":
+        markup.add("🏁 Start Run", "⛔️ Stop Run")
+        markup.add("📊 My Results", "⬅️ Main Menu")
+        text = "🏃 Choose action for SHARKAN RUN:"
+    else:
+        markup.add("🏁 Почати біг", "⛔️ Завершити біг")
+        markup.add("📊 Мої результати", "⬅️ Головне меню")
+        text = "🏃‍♂️ Обери дію для SHARKAN RUN:"
+    bot.send_message(message.chat.id, text, reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text.startswith("🏁"))
+def start_run(message):
+    user_id = str(message.from_user.id)
+    running_sessions[user_id] = {"start": datetime.now(), "message_id": None}
+    msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
+    running_sessions[user_id]["message_id"] = msg.message_id
+    update_timer(message.chat.id, user_id)
+
 def update_timer(chat_id, user_id):
     if user_id not in running_sessions:
         return
-
     start = running_sessions[user_id]["start"]
     now = datetime.now()
     elapsed = int((now - start).total_seconds())
     minutes = elapsed // 60
     seconds = elapsed % 60
-    text = (
-    f"⏱ Біг розпочато!\n"
-    f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
-    f"🔥 Калорії: 0"
-    )
 
+    text = (
+        f"🏃 Біг розпочато!\n"
+        f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
+        f"🔥 Калорії: 0"
+    )
     try:
         bot.edit_message_text(chat_id=chat_id, message_id=running_sessions[user_id]["message_id"], text=text, reply_markup=get_run_markup())
     except:
         pass
-
     Timer(1, update_timer, args=(chat_id, user_id)).start()
 
-@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
+@bot.message_handler(func=lambda msg: "⛔️" in msg.text or "завершить" in msg.text.lower())
 def stop_run(message):
     user_id = str(message.from_user.id)
     if user_id not in running_sessions:
@@ -189,106 +194,15 @@ def stop_run(message):
 
     profile["coins"] += reward
     save_all()
-    
-user_id = str(message.from_user.id)    
-start_time = running_sessions[user_id]["start"]
-end_time = datetime.now()
-duration = end_time - start_time
-total_seconds = int(duration.total_seconds())
-minutes = total_seconds // 60
-seconds = total_seconds % 60
 
-text = (
-    f"✅ Біг завершено!\n"
-    f"⏱ Час: {minutes:02d}:{seconds:02d}\n"
-    f"🔥 Калорії: {calories}\n"
-    f"🎁 Нагорода: +{reward} SHRK COINS"
-)
+    text = (
+        f"✅ Біг завершено!\n"
+        f"⏱ Час: {formatted_time}\n"
+        f"🔥 Калорії: {calories}\n"
+        f"🎁 Нагорода: +{reward} SHRK COINS"
+    )
 
-bot.send_message(
-    message.chat.id,
-    text,
-    reply_markup=main_menu_markup(user_id)
-)
-@bot.message_handler(func=lambda msg: msg.text in ["📊 Мої результати", "📊 My Results"])
-def show_results(message):
-    user_id = str(message.from_user.id)
-    stats = run_stats.get(user_id, [])
-    today = datetime.now()
-    today_str = today.strftime("%Y-%m-%d")
-
-    week_ago = today - timedelta(days=7)
-    month_ago = today - timedelta(days=30)
-    half_year_ago = today - timedelta(days=183)
-    year_ago = today - timedelta(days=365)
-
-    runs_today = [r for r in stats if r["date"] == today_str]
-    runs_week = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= week_ago]
-    runs_month = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= month_ago]
-    runs_half_year = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= half_year_ago]
-    runs_year = [r for r in stats if datetime.strptime(r["date"], "%Y-%m-%d") >= year_ago]
-
-    streak = 1
-    dates = sorted([datetime.strptime(r["date"], "%Y-%m-%d") for r in stats], reverse=True)
-    for i in range(1, len(dates)):
-        if (dates[i - 1] - dates[i]).days == 1:
-            streak += 1
-        else:
-            break
-
-    total_runs = len(stats)
-    total_calories = sum(r["calories"] for r in stats)
-    if total_runs >= 11:
-        rank = "🥇 Звір"
-    elif total_runs >= 4:
-        rank = "🥈 SHARKAN учень"
-    else:
-        rank = "🥉 Новачок"
-
-    text = f"""
-📊 Мої результати
-
-🏃‍♂️ SHARKAN RUN:
-📅 Сьогодні: {len(runs_today)} пробіжка(и)
-🗓 За тиждень: {len(runs_week)} пробіжок
-📆 За місяць: {len(runs_month)} пробіжок
-🕓 За пів року: {len(runs_half_year)} пробіжок
-📈 За рік: {len(runs_year)} пробіжок
-
-🔥 Калорій спалено всього: {total_calories}
-🎯 Стрик: {streak} днів підряд
-🏅 Ранг: {rank}
-"""
-    bot.send_message(message.chat.id, text.strip(), reply_markup=get_run_markup())
-
-@bot.message_handler(func=lambda msg: "головне меню" in msg.text.lower())
-def back_to_main_menu(message):
-    user_id = str(message.from_user.id)
-    menu_from_id(message.chat.id, user_id)
-
-
-
-# === Режим БІГ з підтримкою 3 мов ===
-
-@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
-def run_menu(message):
-    lang = user_profiles.get(str(message.from_user.id), {}).get("lang", "ua")
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if lang == "ru":
-        markup.add("🏁 Начать бег", "🛑 Завершить бег")
-        markup.add("📊 Мои результаты", "💰 SHRK COINS")
-        text = "Выбери действие:"
-    elif lang == "en":
-        markup.add("🏁 Start Run", "🛑 Stop Run")
-        markup.add("📊 My Results", "💰 SHRK COINS")
-        text = "Choose an action:"
-    else:
-        markup.add("🏁 Почати біг", "🛑 Завершити біг")
-        markup.add("📊 Мої результати", "💰 SHRK COINS")
-        text = "Обери дію:"
-    bot.send_message(message.chat.id, text, reply_markup=markup)
-
-
+    bot.send_message(message.chat.id, text, reply_markup=main_menu_markup(user_id))
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
