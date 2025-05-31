@@ -135,7 +135,7 @@ def update_timer(user_id):
         pass
     Timer(1, update_timer, args=(user_id,)).start()
 
-@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
+@bot.message_handler(func=lambda msg: msg.text in ["⛔️ Завершити біг", "🛑 Завершить бег", "🛑 Stop Run"])
 def stop_run(message):
     user_id = str(message.from_user.id)
     if user_id not in running_sessions:
