@@ -124,8 +124,11 @@ def update_timer(chat_id, user_id):
     elapsed = int((now - start).total_seconds())
     minutes = elapsed // 60
     seconds = elapsed % 60
-    text = f"⏱ Біг розпочато!\nТаймер: 00:00"
-Таймер: {minutes:02d}:{seconds:02d}"
+    text = (
+    f"⏱ Біг розпочато!\n"
+    f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
+    f"🔥 Калорії: 0"
+    )
 
     try:
         bot.edit_message_text(chat_id=chat_id, message_id=running_sessions[user_id]["message_id"], text=text, reply_markup=get_run_markup())
