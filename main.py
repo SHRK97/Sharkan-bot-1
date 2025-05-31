@@ -114,9 +114,9 @@ def stop_run(message):
     end_time = datetime.now()
     duration = end_time - start_time
     total_seconds = int(duration.total_seconds())
-minutes = total_seconds // 60
-seconds = total_seconds % 60
-formatted_time = f"{minutes:02d}:{seconds:02d}"
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+    formatted_time = f"{minutes:02d}:{seconds:02d}"
     calories = int(weight * (total_seconds / 60) * 0.087)
 
     run_entry = {
