@@ -105,7 +105,7 @@ def start_run(message):
         "start": datetime.now(),
         "message_id": None
     }
-    msg = bot.send_message(message.chat.id, "⏱ Біг розпочато!
+    msg = bot.send_message(message.chat.id, "🏃 Біг розпочато!\n⏱ Таймер: 00:00")
 Таймер: 00:00", reply_markup=get_run_markup())
     running_sessions[user_id]["message_id"] = msg.message_id
     update_timer(message.chat.id, user_id)
