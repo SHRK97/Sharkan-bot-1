@@ -98,39 +98,32 @@ def get_run_markup():
 
 @bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
 def run_menu(message):
-    lang = user_profiles.get(str(message.from_user.id), {}).get("language", "ua")
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if lang == "ru":
-        markup.add("🏁 Начать бег", "⛔️ Завершить бег")
-        markup.add("📊 Мои результаты", "⬅️ Главное меню")
-        text = "🏃 Выбери действие для SHARKAN RUN:"
-    elif lang == "en":
-        markup.add("🏁 Start Run", "⛔️ Stop Run")
-        markup.add("📊 My Results", "⬅️ Main Menu")
-        text = "🏃 Choose action for SHARKAN RUN:"
-    else:
-        markup.add("🏁 Почати біг", "⛔️ Завершити біг")
-        markup.add("📊 Мої результати", "⬅️ Головне меню")
-        text = "🏃‍♂️ Обери дію для SHARKAN RUN:"
-    bot.send_message(message.chat.id, text, reply_markup=markup)
+    markup.add("🏁 Почати біг", "⛔️ Завершити біг")
+    markup.add("📊 Мої результати", "⬅️ Головне меню")
+    bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
 
-@bot.message_handler(func=lambda msg: msg.text.startswith("🏁"))
+@bot.message_handler(func=lambda msg: "почати" in msg.text.lower())
 def start_run(message):
     user_id = str(message.from_user.id)
-    running_sessions[user_id] = {"start": datetime.now(), "message_id": None}
+    running_sessions[user_id] = {
+        "start": datetime.now(),
+        "message_id": None,
+        "chat_id": message.chat.id
+    }
     msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
     running_sessions[user_id]["message_id"] = msg.message_id
-    update_timer(message.chat.id, user_id)
+    update_timer(user_id)
 
-def update_timer(chat_id, user_id):
+def update_timer(user_id):
     if user_id not in running_sessions:
         return
+    chat_id = running_sessions[user_id]["chat_id"]
     start = running_sessions[user_id]["start"]
     now = datetime.now()
     elapsed = int((now - start).total_seconds())
     minutes = elapsed // 60
     seconds = elapsed % 60
-
     text = (
         f"🏃 Біг розпочато!\n"
         f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
@@ -140,19 +133,18 @@ def update_timer(chat_id, user_id):
         bot.edit_message_text(chat_id=chat_id, message_id=running_sessions[user_id]["message_id"], text=text, reply_markup=get_run_markup())
     except:
         pass
-    Timer(1, update_timer, args=(chat_id, user_id)).start()
+    Timer(1, update_timer, args=(user_id,)).start()
 
-@bot.message_handler(func=lambda msg: "⛔️" in msg.text or "завершить" in msg.text.lower())
+@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
 def stop_run(message):
     user_id = str(message.from_user.id)
     if user_id not in running_sessions:
-        bot.send_message(message.chat.id, "❌ Біг не активний.")
+        bot.send_message(message.chat.id, "❗ Ти ще не почав біг.")
         return
 
     start_time = running_sessions[user_id]["start"]
     end_time = datetime.now()
-    duration = end_time - start_time
-    total_seconds = int(duration.total_seconds())
+    total_seconds = int((end_time - start_time).total_seconds())
     minutes = total_seconds // 60
     seconds = total_seconds % 60
     formatted_time = f"{minutes:02d}:{seconds:02d}"
@@ -203,6 +195,7 @@ def stop_run(message):
     )
 
     bot.send_message(message.chat.id, text, reply_markup=main_menu_markup(user_id))
+    
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
