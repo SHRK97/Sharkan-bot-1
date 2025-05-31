@@ -253,6 +253,28 @@ def back_to_main_menu(message):
     menu_from_id(message.chat.id, user_id)
 
 
+
+# === Режим БІГ з підтримкою 3 мов ===
+
+@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
+def run_menu(message):
+    lang = user_profiles.get(str(message.from_user.id), {}).get("lang", "ua")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if lang == "ru":
+        markup.add("🏁 Начать бег", "🛑 Завершить бег")
+        markup.add("📊 Мои результаты", "💰 SHRK COINS")
+        text = "Выбери действие:"
+    elif lang == "en":
+        markup.add("🏁 Start Run", "🛑 Stop Run")
+        markup.add("📊 My Results", "💰 SHRK COINS")
+        text = "Choose an action:"
+    else:
+        markup.add("🏁 Почати біг", "🛑 Завершити біг")
+        markup.add("📊 Мої результати", "💰 SHRK COINS")
+        text = "Обери дію:"
+    bot.send_message(message.chat.id, text, reply_markup=markup)
+
+
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
