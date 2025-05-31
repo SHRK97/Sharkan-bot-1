@@ -124,7 +124,7 @@ def update_timer(chat_id, user_id):
     elapsed = int((now - start).total_seconds())
     minutes = elapsed // 60
     seconds = elapsed % 60
-    text = f"⏱ Біг розпочато!
+    text = f"⏱ Біг розпочато!\nТаймер: 00:00"
 Таймер: {minutes:02d}:{seconds:02d}"
 
     try:
