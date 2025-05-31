@@ -192,7 +192,7 @@ def stop_run(message):
 
     bot.send_message(
         message.chat.id,
-        f"✅ Біг завершено!
+        f"✅ Біг завершено!"
 ⏱ Час: {formatted_time}
 🔥 Калорії: {calories}
 🎁 Нагорода: +{reward} SHRK COINS",
