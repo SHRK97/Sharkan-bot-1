@@ -127,6 +127,10 @@ def stop_run(message):
 
     run_stats.setdefault(user_id, []).append(run_entry)
     del active_runs[user_id]
+    bot.send_message(
+        message.chat.id,
+        f"✅ Біг завершено!\n⏱ Час: {formatted_time}\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS"
+    )
 
     profile = user_profiles.setdefault(user_id, {"coins": 0})
     reward = 0
@@ -153,11 +157,6 @@ def stop_run(message):
 
     profile["coins"] += reward
     save_all()
-
-bot.send_message(
-    message.chat.id,
-    f"✅ Біг завершено!\n⏱ Час: {formatted_time}\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS"
-)
 
 @bot.message_handler(func=lambda msg: msg.text == "📊 Мої результати" or msg.text == "📊 My Results")
 def show_results(message):
