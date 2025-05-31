@@ -88,6 +88,7 @@ def start(message):
 
 # === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
 from threading import Timer
+from datetime import datetime
 
 running_sessions = {}
 
@@ -106,46 +107,40 @@ def run_menu(message):
 @bot.message_handler(func=lambda msg: "почати" in msg.text.lower())
 def start_run(message):
     user_id = str(message.from_user.id)
+    msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
     running_sessions[user_id] = {
         "start": datetime.now(),
-        "chat_id": message.chat.id
+        "chat_id": message.chat.id,
+        "message_id": msg.message_id
     }
+    update_timer(user_id)
 
-    text = "🏃 Біг розпочато!\n⏱ Таймер: 00:00\n🔥 Калорії: 0"
-    msg = bot.send_message(message.chat.id, text, reply_markup=get_run_markup())
-    running_sessions[user_id]["message_id"] = msg.message_id
+def update_timer(user_id):
+    if user_id not in running_sessions:
+        return
 
-    def update():
-        if user_id not in running_sessions:
-            return
+    now = datetime.now()
+    start = running_sessions[user_id]["start"]
+    elapsed = int((now - start).total_seconds())
+    minutes = elapsed // 60
+    seconds = elapsed % 60
+    chat_id = running_sessions[user_id]["chat_id"]
+    msg_id = running_sessions[user_id]["message_id"]
 
-        start = running_sessions[user_id]["start"]
-        now = datetime.now()
-        elapsed = int((now - start).total_seconds())
-        minutes = elapsed // 60
-        seconds = elapsed % 60
+    text = (
+        f"🏃 Біг розпочато!\n"
+        f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
+        f"🔥 Калорії: 0"
+    )
 
-        text = (
-            f"🏃 Біг розпочато!\n"
-            f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
-            f"🔥 Калорії: 0"
-        )
+    try:
+        bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=text, reply_markup=get_run_markup())
+    except:
+        pass
 
-        try:
-            bot.edit_message_text(
-                chat_id=message.chat.id,
-                message_id=running_sessions[user_id]["message_id"],
-                text=text,
-                reply_markup=get_run_markup()
-            )
-        except:
-            pass
+    Timer(1, update_timer, args=(user_id,)).start()
 
-        Timer(1, update).start()
-
-    update()
-
-@bot.message_handler(func=lambda msg: msg.text in ["⛔️ Завершити біг", "🛑 Завершить бег", "🛑 Stop Run"])
+@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
 def stop_run(message):
     user_id = str(message.from_user.id)
     if user_id not in running_sessions:
@@ -205,7 +200,6 @@ def stop_run(message):
     )
 
     bot.send_message(message.chat.id, text, reply_markup=main_menu_markup(user_id))
-    
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
