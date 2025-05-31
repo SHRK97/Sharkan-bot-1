@@ -108,32 +108,42 @@ def start_run(message):
     user_id = str(message.from_user.id)
     running_sessions[user_id] = {
         "start": datetime.now(),
-        "message_id": None,
         "chat_id": message.chat.id
     }
-    msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
-    running_sessions[user_id]["message_id"] = msg.message_id
-    update_timer(user_id)
 
-def update_timer(user_id):
-    if user_id not in running_sessions:
-        return
-    chat_id = running_sessions[user_id]["chat_id"]
-    start = running_sessions[user_id]["start"]
-    now = datetime.now()
-    elapsed = int((now - start).total_seconds())
-    minutes = elapsed // 60
-    seconds = elapsed % 60
-    text = (
-        f"🏃 Біг розпочато!\n"
-        f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
-        f"🔥 Калорії: 0"
-    )
-    try:
-        bot.edit_message_text(chat_id=chat_id, message_id=running_sessions[user_id]["message_id"], text=text, reply_markup=get_run_markup())
-    except:
-        pass
-    Timer(1, update_timer, args=(user_id,)).start()
+    text = "🏃 Біг розпочато!\n⏱ Таймер: 00:00\n🔥 Калорії: 0"
+    msg = bot.send_message(message.chat.id, text, reply_markup=get_run_markup())
+    running_sessions[user_id]["message_id"] = msg.message_id
+
+    def update():
+        if user_id not in running_sessions:
+            return
+
+        start = running_sessions[user_id]["start"]
+        now = datetime.now()
+        elapsed = int((now - start).total_seconds())
+        minutes = elapsed // 60
+        seconds = elapsed % 60
+
+        text = (
+            f"🏃 Біг розпочато!\n"
+            f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
+            f"🔥 Калорії: 0"
+        )
+
+        try:
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=running_sessions[user_id]["message_id"],
+                text=text,
+                reply_markup=get_run_markup()
+            )
+        except:
+            pass
+
+        Timer(1, update).start()
+
+    update()
 
 @bot.message_handler(func=lambda msg: msg.text in ["⛔️ Завершити біг", "🛑 Завершить бег", "🛑 Stop Run"])
 def stop_run(message):
