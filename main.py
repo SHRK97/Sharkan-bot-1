@@ -190,15 +190,18 @@ def stop_run(message):
     profile["coins"] += reward
     save_all()
 
-    bot.send_message(
-        message.chat.id,
-        f"✅ Біг завершено!"
-⏱ Час: {formatted_time}
-🔥 Калорії: {calories}
-🎁 Нагорода: +{reward} SHRK COINS",
-        reply_markup=main_menu_markup(user_id)
-    )
+text = (
+    f"✅ Біг завершено!\n"
+    f"⏱ Час: {minutes:02d}:{seconds:02d}\n"
+    f"🔥 Калорії: {calories}\n"
+    f"🎁 Нагорода: +{reward} SHRK COINS"
+)
 
+bot.send_message(
+    message.chat.id,
+    text,
+    reply_markup=main_menu_markup(user_id)
+)
 @bot.message_handler(func=lambda msg: msg.text in ["📊 Мої результати", "📊 My Results"])
 def show_results(message):
     user_id = str(message.from_user.id)
