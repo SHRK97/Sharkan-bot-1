@@ -86,38 +86,71 @@ def start(message):
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
-@bot.message_handler(func=lambda msg: msg.text == "⏱ Режим БІГ" or msg.text == "⏱ Running Mode")
+# === Режим БІГ SHARKAN ===
+from threading import Timer
+
+running_sessions = {}
+
+@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
 def run_menu(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🏁 Почати біг", "🛑 Завершити біг")
-    markup.add("📊 Мої результати", "💰 SHRK COINS")
-    bot.send_message(message.chat.id, "Обери дію:", reply_markup=markup)
+    markup.add("🏁 Почати біг", "⛔️ Завершити біг")
+    markup.add("📊 Мої результати", "⬅️ Головне меню")
+    bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
 
-@bot.message_handler(func=lambda msg: msg.text == "🏁 Почати біг")
+@bot.message_handler(func=lambda msg: msg.text.startswith("🏁"))
 def start_run(message):
     user_id = str(message.from_user.id)
-    active_runs[user_id] = {"start": datetime.now()}
-    bot.send_message(
-        message.chat.id,
-        "🏃‍♂️ Біг розпочато!\n⏱ Таймер запущено автоматично.\nНатисни 🛑 Завершити біг, коли закінчиш."
-    )
+    running_sessions[user_id] = {
+        "start": datetime.now(),
+        "message_id": None
+    }
+    msg = bot.send_message(message.chat.id, "⏱ Біг розпочато!
+Таймер: 00:00", reply_markup=get_run_markup())
+    running_sessions[user_id]["message_id"] = msg.message_id
+    update_timer(message.chat.id, user_id)
 
-@bot.message_handler(func=lambda msg: msg.text == "🛑 Завершити біг")
-def stop_run(message):
-    user_id = str(message.from_user.id)
-    if user_id not in active_runs:
-        bot.send_message(message.chat.id, "❗ Ти ще не почав біг.")
+def get_run_markup():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("⛔️ Завершити біг")
+    return markup
+
+def update_timer(chat_id, user_id):
+    if user_id not in running_sessions:
         return
 
-    weight = user_profiles.get(user_id, {}).get("weight", 70)
-    start_time = active_runs[user_id]["start"]
+    start = running_sessions[user_id]["start"]
+    now = datetime.now()
+    elapsed = int((now - start).total_seconds())
+    minutes = elapsed // 60
+    seconds = elapsed % 60
+    text = f"⏱ Біг розпочато!
+Таймер: {minutes:02d}:{seconds:02d}"
+
+    try:
+        bot.edit_message_text(chat_id=chat_id, message_id=running_sessions[user_id]["message_id"], text=text, reply_markup=get_run_markup())
+    except:
+        pass
+
+    Timer(1, update_timer, args=(chat_id, user_id)).start()
+
+@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
+def stop_run(message):
+    user_id = str(message.from_user.id)
+    if user_id not in running_sessions:
+        bot.send_message(message.chat.id, "❌ Біг не активний.")
+        return
+
+    start_time = running_sessions[user_id]["start"]
     end_time = datetime.now()
     duration = end_time - start_time
     total_seconds = int(duration.total_seconds())
     minutes = total_seconds // 60
     seconds = total_seconds % 60
     formatted_time = f"{minutes:02d}:{seconds:02d}"
-    calories = int(weight * (total_seconds / 60) * 0.087)
+
+    weight = float(user_profiles.get(user_id, {}).get("weight", 70))
+    calories = int((total_seconds / 60) * (weight * 0.087))
 
     run_entry = {
         "date": start_time.strftime("%Y-%m-%d"),
@@ -126,11 +159,7 @@ def stop_run(message):
     }
 
     run_stats.setdefault(user_id, []).append(run_entry)
-    del active_runs[user_id]
-    bot.send_message(
-        message.chat.id,
-        f"✅ Біг завершено!\n⏱ Час: {formatted_time}\n🔥 Калорії: {calories}\n🎁 Нагорода: +{reward} SHRK COINS"
-    )
+    del running_sessions[user_id]
 
     profile = user_profiles.setdefault(user_id, {"coins": 0})
     reward = 0
@@ -158,7 +187,16 @@ def stop_run(message):
     profile["coins"] += reward
     save_all()
 
-@bot.message_handler(func=lambda msg: msg.text == "📊 Мої результати" or msg.text == "📊 My Results")
+    bot.send_message(
+        message.chat.id,
+        f"✅ Біг завершено!
+⏱ Час: {formatted_time}
+🔥 Калорії: {calories}
+🎁 Нагорода: +{reward} SHRK COINS",
+        reply_markup=main_menu_markup(user_id)
+    )
+
+@bot.message_handler(func=lambda msg: msg.text in ["📊 Мої результати", "📊 My Results"])
 def show_results(message):
     user_id = str(message.from_user.id)
     stats = run_stats.get(user_id, [])
@@ -207,27 +245,13 @@ def show_results(message):
 🎯 Стрик: {streak} днів підряд
 🏅 Ранг: {rank}
 """
-    bot.send_message(message.chat.id, text.strip())
+    bot.send_message(message.chat.id, text.strip(), reply_markup=get_run_markup())
 
-@bot.message_handler(func=lambda msg: msg.text == "💰 SHRK COINS" or msg.text == "🪙 SHRK COINS")
-def show_coins(message):
+@bot.message_handler(func=lambda msg: "головне меню" in msg.text.lower())
+def back_to_main_menu(message):
     user_id = str(message.from_user.id)
-    profile = user_profiles.get(user_id, {"coins": 0})
-    coins = profile.get("coins", 0)
-    reward = profile.get("last_reward", "–")
+    menu_from_id(message.chat.id, user_id)
 
-    text = f"""
-💰 SHRK COINS
-
-Поточний баланс: {coins} монет
-Остання нагорода: {reward}
-
-🔓 Доступно:
-• Темна Зона — 150 монет
-• Мотивація SHARKAN — 30 монет
-• Челенджі — 50–100 монет
-"""
-    bot.send_message(message.chat.id, text.strip())
 
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
