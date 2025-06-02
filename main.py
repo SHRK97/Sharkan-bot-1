@@ -221,6 +221,61 @@ def stop_run(message):
         "en": f"✅ Run completed!\n⏱ Duration: {duration} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
     }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
+
+@bot.message_handler(func=lambda msg: msg.text.lower() in ["⏱ режим біг", "⏱ режим бег", "⏱ running mode"])
+def run_menu(message):
+    user_id = str(message.from_user.id)
+    lang = user_lang.get(user_id, "ua")
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if lang == "ru":
+        markup.add("🏁 Начать бег", "⛔️ Завершить бег")
+        markup.add("📊 Мои результаты", "⬅️ Главное меню")
+        text = "🏃‍♂️ Выбери действие для SHARKAN RUN:"
+    elif lang == "en":
+        markup.add("🏁 Start run", "⛔️ Stop run")
+        markup.add("📊 My results", "⬅️ Main menu")
+        text = "🏃‍♂️ Choose an action for SHARKAN RUN:"
+    else:
+        markup.add("🏁 Почати біг", "⛔️ Завершити біг")
+        markup.add("📊 Мої результати", "⬅️ Головне меню")
+        text = "🏃‍♂️ Обери дію для SHARKAN RUN:"
+
+    send_clean_message(message.chat.id, user_id, text, reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: "результат" in msg.text.lower())
+def show_run_results(message):
+    user_id = str(message.from_user.id)
+    chat_id = message.chat.id
+    lang = user_lang.get(user_id, "ua")
+
+    try:
+        with open("run_history.json", "r") as f:
+            run_history = json.load(f)
+        records = run_history.get(user_id, [])
+    except:
+        records = []
+
+    if not records:
+        no_data = {
+            "ua": "❌ Немає збережених пробіжок.",
+            "ru": "❌ Нет сохранённых пробежек.",
+            "en": "❌ No saved runs."
+        }
+        send_clean_message(chat_id, user_id, no_data.get(lang, no_data["ua"]))
+        return
+
+    titles = {
+        "ua": "📊 Останні пробіжки:",
+        "ru": "📊 Последние пробежки:",
+        "en": "📊 Recent runs:"
+    }
+
+    result = titles.get(lang, titles["ua"]) + "\n"
+    for run in reversed(records[-3:]):
+        result += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
+
+    send_clean_message(chat_id, user_id, result)
     
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
