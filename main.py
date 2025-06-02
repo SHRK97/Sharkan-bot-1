@@ -87,24 +87,28 @@ def start(message):
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
-# === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
+# === SHARKAN RUN v3 — Режим БІГ з таймером, автоочисткою, історією ===
 
 import threading
+import time
 from datetime import datetime
 import json
-import time
 from telebot import types
 
-# === Глобальные переменные ===
+# === Глобальні змінні ===
 running_timers = {}
 last_bot_messages = {}
 
-# === Калькулятор калорий ===
+# === Отримання мови ===
+def get_lang(user_id):
+    return user_lang.get(user_id, "ua")
+
+# === Калькуляція калорій ===
 def calculate_calories(weight_kg, duration_min):
     MET = 9.8
     return round((MET * 3.5 * weight_kg / 200) * duration_min)
 
-# === Сохранение истории пробежек ===
+# === Збереження результату ===
 def save_run_result(user_id, duration_min, calories):
     try:
         with open("run_history.json", "r") as f:
@@ -122,7 +126,7 @@ def save_run_result(user_id, duration_min, calories):
         json.dump(data, f, indent=4, ensure_ascii=False)
     return data[user_id][-3:]
 
-# === Очистка и отправка нового сообщения ===
+# === Відправка нового повідомлення з очищенням ===
 def send_clean_message(chat_id, user_id, text, reply_markup=None):
     if user_id in last_bot_messages:
         try:
@@ -133,7 +137,7 @@ def send_clean_message(chat_id, user_id, text, reply_markup=None):
     last_bot_messages[user_id] = msg.message_id
     return msg.message_id
 
-# === Таймер з автоочисткою ===
+# === Клас таймера з оновленням ===
 class RunTimer:
     def __init__(self, bot, chat_id, user_id, weight_kg, lang):
         self.bot = bot
@@ -171,7 +175,7 @@ class RunTimer:
                 pass
             time.sleep(60)
 
-# === Обработчик кнопки "Почати біг" ===
+# === Кнопка "Почати біг" ===
 @bot.message_handler(func=lambda msg: msg.text.lower() in ["почати біг", "начать бег", "start run"])
 def start_run(message):
     user_id = str(message.from_user.id)
@@ -190,13 +194,16 @@ def start_run(message):
     running_timers[user_id] = RunTimer(bot, chat_id, user_id, weight, lang)
 
     texts = {
-        "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
-        "ru": "🏃‍♂️ Беги! Я фиксирую твое время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
-        "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
+        "ua": "🏃‍♂️ Біжи! Я фіксую твій час...
+⛔️ Натисни «Завершити біг», коли завершиш.",
+        "ru": "🏃‍♂️ Беги! Я фиксирую твое время...
+⛔️ Нажми «Завершить бег», когда закончишь.",
+        "en": "🏃‍♂️ Run! I’m tracking your time...
+⛔️ Tap 'Stop run' when you’re done."
     }
     send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
 
-# === Обработчик кнопки "Завершити біг" ===
+# === Кнопка "Завершити біг" ===
 @bot.message_handler(func=lambda msg: msg.text.lower() in ["завершити біг", "завершить бег", "stop run"])
 def stop_run(message):
     user_id = str(message.from_user.id)
@@ -216,16 +223,26 @@ def stop_run(message):
     del running_timers[user_id]
 
     result_text = {
-        "ua": f"✅ Пробіжка завершена!\n⏱ Тривалість: {duration} хв\n🔥 Спалено: {calories} ккал\n📦 Результат збережено.",
-        "ru": f"✅ Бег завершен!\n⏱ Длительность: {duration} мин\n🔥 Сожжено: {calories} ккал\n📦 Результат сохранён.",
-        "en": f"✅ Run completed!\n⏱ Duration: {duration} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
+        "ua": f"✅ Пробіжка завершена!
+⏱ Тривалість: {duration} хв
+🔥 Спалено: {calories} ккал
+📦 Результат збережено.",
+        "ru": f"✅ Бег завершен!
+⏱ Длительность: {duration} мин
+🔥 Сожжено: {calories} ккал
+📦 Результат сохранён.",
+        "en": f"✅ Run completed!
+⏱ Duration: {duration} min
+🔥 Burned: {calories} kcal
+📦 Result saved."
     }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
 
+# === Меню SHARKAN RUN ===
 @bot.message_handler(func=lambda msg: msg.text.lower() in ["⏱ режим біг", "⏱ режим бег", "⏱ running mode"])
 def run_menu(message):
     user_id = str(message.from_user.id)
-    lang = user_lang.get(user_id, "ua")
+    lang = get_lang(user_id)
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     if lang == "ru":
@@ -243,11 +260,12 @@ def run_menu(message):
 
     send_clean_message(message.chat.id, user_id, text, reply_markup=markup)
 
+# === Останні пробіжки ===
 @bot.message_handler(func=lambda msg: "результат" in msg.text.lower())
 def show_run_results(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
-    lang = user_lang.get(user_id, "ua")
+    lang = get_lang(user_id)
 
     try:
         with open("run_history.json", "r") as f:
@@ -276,7 +294,7 @@ def show_run_results(message):
         result += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
 
     send_clean_message(chat_id, user_id, result)
-    
+
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
