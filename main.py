@@ -4,7 +4,70 @@ import logging
 import random
 from datetime import datetime
 from telebot import TeleBot, types
+from book_reader_module import *
 
+import json
+from telebot import types
+
+# === Завантаження книг при запуску ===
+try:
+    with open("думай_і_багатій_ua.json", "r", encoding="utf-8") as f:
+        book_think_rich = json.load(f)
+    with open("сила_звички_ua.json", "r", encoding="utf-8") as f:
+        book_habit = json.load(f)
+except Exception as e:
+    print(f"Помилка при завантаженні книг: {e}")
+    book_think_rich, book_habit = [], []
+
+# === Вибір книги ===
+@bot.message_handler(func=lambda msg: msg.text == "📚 Книги SHARKAN")
+def book_menu(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("📘 Думай і багатій", "📙 Сила звички")
+    markup.add("⬅️ Головне меню")
+    bot.send_message(message.chat.id, "📚 Обери книгу для читання:", reply_markup=markup)
+
+# === Обробка вибору книги ===
+@bot.message_handler(func=lambda msg: msg.text in ["📘 Думай і багатій", "📙 Сила звички"])
+def read_book(message):
+    user_id = str(message.from_user.id)
+    book = book_think_rich if message.text == "📘 Думай і багатій" else book_habit
+    if not book:
+        bot.send_message(message.chat.id, "⚠️ Книга недоступна.")
+        return
+    user_states[user_id] = {"book": message.text, "page": 0}
+    show_page(message.chat.id, user_id)
+
+# === Кнопки ⬅️➡️ для навігації ===
+@bot.message_handler(func=lambda msg: msg.text in ["⬅️ Назад", "➡️ Вперед"])
+def flip_page(message):
+    user_id = str(message.from_user.id)
+    state = user_states.get(user_id, {})
+    if "book" not in state: return
+
+    if message.text == "➡️ Вперед":
+        state["page"] += 1
+    elif message.text == "⬅️ Назад" and state["page"] > 0:
+        state["page"] -= 1
+
+    show_page(message.chat.id, user_id)
+
+# === Показати сторінку ===
+def show_page(chat_id, user_id):
+    state = user_states.get(user_id, {})
+    book = book_think_rich if state.get("book") == "📘 Думай і багатій" else book_habit
+    page = state.get("page", 0)
+
+    if page >= len(book):
+        bot.send_message(chat_id, "📖 Це остання сторінка.")
+        return
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("⬅️ Назад", "➡️ Вперед")
+    markup.add("⬅️ Головне меню")
+    bot.send_message(chat_id, f"📖 Сторінка {page+1}:
+
+{book[page]}", reply_markup=markup)
     
 # === Загрузка мотиваций ===
 try:
