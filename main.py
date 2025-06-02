@@ -65,7 +65,7 @@ def show_page(chat_id, user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("⬅️ Назад", "➡️ Вперед")
     markup.add("⬅️ Головне меню")
-    bot.send_message(chat_id, f"📖 Сторінка {page+1}:
+    bot.send_message(chat_id, f"📖 Сторінка" {page+1}:
 
 {book[page]}", reply_markup=markup)
     
