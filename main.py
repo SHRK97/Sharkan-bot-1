@@ -4,7 +4,6 @@ import logging
 import random
 from datetime import datetime
 from telebot import TeleBot, types
-from book_reader_module import *
 
 import json
 from telebot import types
