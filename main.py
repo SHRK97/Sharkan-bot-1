@@ -4,6 +4,91 @@ import logging
 import random
 from datetime import datetime
 from telebot import TeleBot, types
+
+    
+# === Загрузка мотиваций ===
+try:
+    with open("motivations.json", "r", encoding="utf-8") as f:
+        motivation_data = json.load(f)
+except Exception as e:
+    motivation_data = {"ua": [], "ru": [], "en": []}
+    logging.error(f"[LOAD_MOTIVATION_ERROR] {e}")
+
+# === Загрузка советов от тренеров ===
+try:
+    with open("coaches_tips.json", "r", encoding="utf-8") as f:
+        coaches_data = json.load(f)
+except Exception as e:
+    coaches_data = {"ua": [], "ru": [], "en": []}
+    logging.error(f"[LOAD_COACHES_ERROR] {e}")
+    
+# === Переменная окружения ===
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
+
+bot = TeleBot(BOT_TOKEN)
+ADMIN_ID = 693609628
+VERSION = "SHARKAN BOT v1.0 — MULTILANG + GENDER"
+
+# === Логирование ===
+logging.basicConfig(
+    level=logging.INFO,
+    filename="bot.log",
+    filemode="a",
+    format="%(asctime)s — %(levelname)s — %(message)s"
+)
+
+# === Профили пользователей ===
+USER_PROFILE_FILE = "user_profiles.json"
+if os.path.exists(USER_PROFILE_FILE):
+    with open(USER_PROFILE_FILE, "r") as f:
+        user_profiles = json.load(f)
+else:
+    user_profiles = {}
+
+def save_profiles():
+    try:
+        with open(USER_PROFILE_FILE, "w") as f:
+            json.dump(user_profiles, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"[SAVE_PROFILE_ERROR] {e}")
+
+# === Статистика пробіжок та монети ===
+run_stats_file = "run_stats.json"
+if os.path.exists(run_stats_file):
+    with open(run_stats_file, "r") as f:
+        run_stats = json.load(f)
+else:
+    run_stats = {}
+
+active_runs = {}
+
+def save_all():
+    save_profiles()
+    with open(run_stats_file, "w") as f:
+        json.dump(run_stats, f, indent=4, ensure_ascii=False)
+
+# === Языки ===
+LANGUAGES = {'ua': 'Українська', 'ru': 'Русский', 'en': 'English'}
+user_lang = {}
+
+# === Подгрузка языков при запуске ===
+for user_id, profile in user_profiles.items():
+    if "language" in profile:
+        user_lang[user_id] = profile["language"]
+
+# === Команда /start ===
+@bot.message_handler(commands=["start"])
+def start(message):
+    user_id = str(message.from_user.id)
+    markup = types.InlineKeyboardMarkup()
+    for code, name in LANGUAGES.items():
+        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
+    bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
+
+# === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
+
 import threading
 from datetime import datetime
 import json
@@ -136,241 +221,6 @@ def stop_run(message):
         "en": f"✅ Run completed!\n⏱ Duration: {duration} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
     }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
-    
-# === Загрузка мотиваций ===
-try:
-    with open("motivations.json", "r", encoding="utf-8") as f:
-        motivation_data = json.load(f)
-except Exception as e:
-    motivation_data = {"ua": [], "ru": [], "en": []}
-    logging.error(f"[LOAD_MOTIVATION_ERROR] {e}")
-
-# === Загрузка советов от тренеров ===
-try:
-    with open("coaches_tips.json", "r", encoding="utf-8") as f:
-        coaches_data = json.load(f)
-except Exception as e:
-    coaches_data = {"ua": [], "ru": [], "en": []}
-    logging.error(f"[LOAD_COACHES_ERROR] {e}")
-    
-# === Переменная окружения ===
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
-
-bot = TeleBot(BOT_TOKEN)
-ADMIN_ID = 693609628
-VERSION = "SHARKAN BOT v1.0 — MULTILANG + GENDER"
-
-# === Логирование ===
-logging.basicConfig(
-    level=logging.INFO,
-    filename="bot.log",
-    filemode="a",
-    format="%(asctime)s — %(levelname)s — %(message)s"
-)
-
-# === Профили пользователей ===
-USER_PROFILE_FILE = "user_profiles.json"
-if os.path.exists(USER_PROFILE_FILE):
-    with open(USER_PROFILE_FILE, "r") as f:
-        user_profiles = json.load(f)
-else:
-    user_profiles = {}
-
-def save_profiles():
-    try:
-        with open(USER_PROFILE_FILE, "w") as f:
-            json.dump(user_profiles, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        logging.error(f"[SAVE_PROFILE_ERROR] {e}")
-
-# === Статистика пробіжок та монети ===
-run_stats_file = "run_stats.json"
-if os.path.exists(run_stats_file):
-    with open(run_stats_file, "r") as f:
-        run_stats = json.load(f)
-else:
-    run_stats = {}
-
-active_runs = {}
-
-def save_all():
-    save_profiles()
-    with open(run_stats_file, "w") as f:
-        json.dump(run_stats, f, indent=4, ensure_ascii=False)
-
-# === Языки ===
-LANGUAGES = {'ua': 'Українська', 'ru': 'Русский', 'en': 'English'}
-user_lang = {}
-
-# === Подгрузка языков при запуске ===
-for user_id, profile in user_profiles.items():
-    if "language" in profile:
-        user_lang[user_id] = profile["language"]
-
-# === Команда /start ===
-@bot.message_handler(commands=["start"])
-def start(message):
-    user_id = str(message.from_user.id)
-    markup = types.InlineKeyboardMarkup()
-    for code, name in LANGUAGES.items():
-        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
-    bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
-
-# === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
-
-from datetime import datetime
-import json
-import os
-from telebot import types
-
-running_sessions = {}
-RUN_HISTORY_FILE = "run_history.json"
-
-# === Розрахунок калорій ===
-def calculate_calories(weight_kg, duration_min):
-    MET_running = 9.8
-    calories = (MET_running * 3.5 * weight_kg / 200) * duration_min
-    return round(calories)
-
-# === Збереження результату ===
-def save_run_result(user_id, duration_min, calories):
-    try:
-        if os.path.exists(RUN_HISTORY_FILE):
-            with open(RUN_HISTORY_FILE, "r") as f:
-                run_history = json.load(f)
-        else:
-            run_history = {}
-    except:
-        run_history = {}
-
-    if user_id not in run_history:
-        run_history[user_id] = []
-
-    run_history[user_id].append({
-        "date": datetime.now().strftime("%d.%m.%Y"),
-        "duration_min": duration_min,
-        "calories": calories
-    })
-
-    with open(RUN_HISTORY_FILE, "w") as f:
-        json.dump(run_history, f, indent=4, ensure_ascii=False)
-
-    return run_history[user_id][-3:]
-
-# === Витяг мови користувача ===
-def get_lang(user_id):
-    try:
-        with open("user_profiles.json", "r") as f:
-            profiles = json.load(f)
-        return profiles.get(str(user_id), {}).get("lang", "ua")
-    except:
-        return "ua"
-
-@bot.message_handler(func=lambda msg: msg.text.lower() in ["⏱ режим бег", "⏱ режим біг", "⏱ running mode"])
-def run_menu(message):
-    user_id = str(message.from_user.id)
-    lang = get_lang(user_id)
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if lang == "ru":
-        markup.add("🏁 Начать бег", "⛔️ Завершить бег")
-        markup.add("📊 Мои результаты", "⬅️ Главное меню")
-        bot.send_message(message.chat.id, "🏃‍♂️ Выбери действие для SHARKAN RUN:", reply_markup=markup)
-    elif lang == "en":
-        markup.add("🏁 Start run", "⛔️ Stop run")
-        markup.add("📊 My results", "⬅️ Main menu")
-        bot.send_message(message.chat.id, "🏃‍♂️ Choose an action for SHARKAN RUN:", reply_markup=markup)
-    else:
-        markup.add("🏁 Почати біг", "⛔️ Завершити біг")
-        markup.add("📊 Мої результати", "⬅️ Головне меню")
-        bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
-
-# === Початок бігу ===
-@bot.message_handler(func=lambda msg: "почати" in msg.text.lower() or "start" in msg.text.lower())
-def start_run(message):
-    user_id = str(message.from_user.id)
-    lang = get_lang(user_id)
-    running_sessions[user_id] = {"start": datetime.now()}
-
-    text = {
-        "ua": "🏃‍♂️ Біжи! Я фіксую твій результат.\n⛔️ Натисни «Завершити біг», коли закінчиш.",
-        "ru": "🏃‍♂️ Беги! Я фиксирую твой результат.\n⛔️ Нажми «Завершить бег», когда закончишь.",
-        "en": "🏃‍♂️ Run! I'm tracking your session.\n⛔️ Tap 'Stop run' when you’re done."
-    }
-    bot.send_message(message.chat.id, text.get(lang, text["ua"]))
-
-# === Завершення бігу ===
-@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower() or "stop" in msg.text.lower())
-def end_run(message):
-    user_id = str(message.from_user.id)
-    lang = get_lang(user_id)
-
-    if user_id not in running_sessions:
-        text = {
-            "ua": "❌ Пробіжка не активна. Натисни «Почати біг».",
-            "ru": "❌ Бег не активен. Нажми «Начать бег».",
-            "en": "❌ Run not active. Tap 'Start run'."
-        }
-        bot.send_message(message.chat.id, text.get(lang, text["ua"]))
-        return
-
-    start_time = running_sessions[user_id]["start"]
-    end_time = datetime.now()
-    duration_min = round((end_time - start_time).seconds / 60)
-
-    # Вага з профілю
-    try:
-        with open("user_profiles.json", "r") as f:
-            profiles = json.load(f)
-        weight = int(profiles.get(user_id, {}).get("weight", 70))
-    except:
-        weight = 70
-
-    calories = calculate_calories(weight, duration_min)
-    save_run_result(user_id, duration_min, calories)
-    del running_sessions[user_id]
-
-    text = {
-        "ua": f"✅ Пробіжка завершена!\n⏱ Тривалість: {duration_min} хв\n🔥 Спалено: {calories} ккал\n📦 Результат збережено.",
-        "ru": f"✅ Бег завершён!\n⏱ Длительность: {duration_min} мин\n🔥 Сожжено: {calories} ккал\n📦 Результат сохранён.",
-        "en": f"✅ Run finished!\n⏱ Duration: {duration_min} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
-    }
-    bot.send_message(message.chat.id, text.get(lang, text["ua"]))
-
-# === Перегляд останніх результатів ===
-@bot.message_handler(func=lambda msg: "результат" in msg.text.lower())
-def show_results(message):
-    user_id = str(message.from_user.id)
-    lang = get_lang(user_id)
-
-    try:
-        with open(RUN_HISTORY_FILE, "r") as f:
-            run_history = json.load(f)
-        records = run_history.get(user_id, [])
-    except:
-        records = []
-
-    if not records:
-        text = {
-            "ua": "❌ Немає збережених пробіжок.",
-            "ru": "❌ Нет сохранённых пробежек.",
-            "en": "❌ No saved runs."
-        }
-        bot.send_message(message.chat.id, text.get(lang, text["ua"]))
-        return
-
-    response = {
-        "ua": "📊 Останні пробіжки:\n",
-        "ru": "📊 Последние пробежки:\n",
-        "en": "📊 Recent runs:\n"
-    }[lang]
-
-    for run in reversed(records[-3:]):
-        response += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
-
-    bot.send_message(message.chat.id, response)
     
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
