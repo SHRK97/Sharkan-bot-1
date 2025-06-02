@@ -4,6 +4,53 @@ import logging
 import random
 from datetime import datetime
 from telebot import TeleBot, types
+import threading
+from datetime import datetime
+import json
+import time
+from telebot import types
+
+# === Глобальные переменные ===
+running_timers = {}
+last_bot_messages = {}
+
+# === Калькулятор калорий ===
+def calculate_calories(weight_kg, duration_min):
+    MET = 9.8
+    return round((MET * 3.5 * weight_kg / 200) * duration_min)
+
+# === Сохранение истории пробежек ===
+def save_run_result(user_id, duration_min, calories):
+    try:
+        with open("run_history.json", "r") as f:
+            data = json.load(f)
+    except:
+        data = {}
+    if user_id not in data:
+        data[user_id] = []
+    data[user_id].append({
+        "date": datetime.now().strftime("%d.%m.%Y"),
+        "duration_min": duration_min,
+        "calories": calories
+    })
+    with open("run_history.json", "w") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    return data[user_id][-3:]
+
+# === Очистка и отправка нового сообщения ===
+def send_clean_message(chat_id, user_id, text, reply_markup=None):
+    if user_id in last_bot_messages:
+        try:
+            bot.delete_message(chat_id, last_bot_messages[user_id])
+        except:
+            pass
+    msg = bot.send_message(chat_id, text, reply_markup=reply_markup)
+    last_bot_messages[user_id] = msg.message_id
+    return msg.message_id
+
+# === Таймер з автоочисткою ===
+class RunTimer:
+    def __init
 
 # === Загрузка мотиваций ===
 try:
