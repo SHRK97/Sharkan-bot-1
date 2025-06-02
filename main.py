@@ -136,6 +136,25 @@ def get_lang(user_id):
     except:
         return "ua"
 
+@bot.message_handler(func=lambda msg: msg.text.lower() in ["⏱ режим бег", "⏱ режим біг", "⏱ running mode"])
+def run_menu(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if lang == "ru":
+        markup.add("🏁 Начать бег", "⛔️ Завершить бег")
+        markup.add("📊 Мои результаты", "⬅️ Главное меню")
+        bot.send_message(message.chat.id, "🏃‍♂️ Выбери действие для SHARKAN RUN:", reply_markup=markup)
+    elif lang == "en":
+        markup.add("🏁 Start run", "⛔️ Stop run")
+        markup.add("📊 My results", "⬅️ Main menu")
+        bot.send_message(message.chat.id, "🏃‍♂️ Choose an action for SHARKAN RUN:", reply_markup=markup)
+    else:
+        markup.add("🏁 Почати біг", "⛔️ Завершити біг")
+        markup.add("📊 Мої результати", "⬅️ Головне меню")
+        bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
+
 # === Початок бігу ===
 @bot.message_handler(func=lambda msg: "почати" in msg.text.lower() or "start" in msg.text.lower())
 def start_run(message):
@@ -220,6 +239,7 @@ def show_results(message):
         response += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
 
     bot.send_message(message.chat.id, response)
+    
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
