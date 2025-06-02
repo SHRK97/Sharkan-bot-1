@@ -219,20 +219,11 @@ def stop_run(message):
     duration, calories = running_timers[user_id].stop()
     del running_timers[user_id]
 
-    result_text = {
-        "ua": f"✅ Пробіжка завершена!
-⏱ Тривалість: {duration} хв
-🔥 Спалено: {calories} ккал
-📦 Результат збережено.",
-        "ru": f"✅ Бег завершен!
-⏱ Длительность: {duration} мин
-🔥 Сожжено: {calories} ккал
-📦 Результат сохранён.",
-        "en": f"✅ Run completed!
-⏱ Duration: {duration} min
-🔥 Burned: {calories} kcal
-📦 Result saved."
-    }
+    texts = {
+    "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
+    "ru": "🏃‍♂️ Беги! Я фиксирую твоё время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
+    "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
+}
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
 
 # === Меню SHARKAN RUN ===
