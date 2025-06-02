@@ -87,119 +87,139 @@ def start(message):
     bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
 # === Режим БІГ SHARKAN з таймером, статистикою та мовами ===
-from threading import Timer
+
 from datetime import datetime
+import json
+import os
+from telebot import types
 
 running_sessions = {}
+RUN_HISTORY_FILE = "run_history.json"
 
-def get_run_markup():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("⛔️ Завершити біг")
-    return markup
+# === Розрахунок калорій ===
+def calculate_calories(weight_kg, duration_min):
+    MET_running = 9.8
+    calories = (MET_running * 3.5 * weight_kg / 200) * duration_min
+    return round(calories)
 
-@bot.message_handler(func=lambda msg: msg.text in ["⏱ Режим БІГ", "⏱ Режим БЕГ", "⏱ Running Mode"])
-def run_menu(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🏁 Почати біг", "⛔️ Завершити біг")
-    markup.add("📊 Мої результати", "⬅️ Головне меню")
-    bot.send_message(message.chat.id, "🏃‍♂️ Обери дію для SHARKAN RUN:", reply_markup=markup)
+# === Збереження результату ===
+def save_run_result(user_id, duration_min, calories):
+    try:
+        if os.path.exists(RUN_HISTORY_FILE):
+            with open(RUN_HISTORY_FILE, "r") as f:
+                run_history = json.load(f)
+        else:
+            run_history = {}
+    except:
+        run_history = {}
 
-@bot.message_handler(func=lambda msg: "почати" in msg.text.lower())
+    if user_id not in run_history:
+        run_history[user_id] = []
+
+    run_history[user_id].append({
+        "date": datetime.now().strftime("%d.%m.%Y"),
+        "duration_min": duration_min,
+        "calories": calories
+    })
+
+    with open(RUN_HISTORY_FILE, "w") as f:
+        json.dump(run_history, f, indent=4, ensure_ascii=False)
+
+    return run_history[user_id][-3:]
+
+# === Витяг мови користувача ===
+def get_lang(user_id):
+    try:
+        with open("user_profiles.json", "r") as f:
+            profiles = json.load(f)
+        return profiles.get(str(user_id), {}).get("lang", "ua")
+    except:
+        return "ua"
+
+# === Початок бігу ===
+@bot.message_handler(func=lambda msg: "почати" in msg.text.lower() or "start" in msg.text.lower())
 def start_run(message):
     user_id = str(message.from_user.id)
-    msg = bot.send_message(message.chat.id, "⏱ Таймер: 00:00", reply_markup=get_run_markup())
-    running_sessions[user_id] = {
-        "start": datetime.now(),
-        "chat_id": message.chat.id,
-        "message_id": msg.message_id
+    lang = get_lang(user_id)
+    running_sessions[user_id] = {"start": datetime.now()}
+
+    text = {
+        "ua": "🏃‍♂️ Біжи! Я фіксую твій результат.\n⛔️ Натисни «Завершити біг», коли закінчиш.",
+        "ru": "🏃‍♂️ Беги! Я фиксирую твой результат.\n⛔️ Нажми «Завершить бег», когда закончишь.",
+        "en": "🏃‍♂️ Run! I'm tracking your session.\n⛔️ Tap 'Stop run' when you’re done."
     }
-    update_timer(user_id)
+    bot.send_message(message.chat.id, text.get(lang, text["ua"]))
 
-def update_timer(user_id):
-    if user_id not in running_sessions:
-        return
-
-    now = datetime.now()
-    start = running_sessions[user_id]["start"]
-    elapsed = int((now - start).total_seconds())
-    minutes = elapsed // 60
-    seconds = elapsed % 60
-    chat_id = running_sessions[user_id]["chat_id"]
-    msg_id = running_sessions[user_id]["message_id"]
-
-    text = (
-        f"🏃 Біг розпочато!\n"
-        f"⏱ Таймер: {minutes:02d}:{seconds:02d}\n"
-        f"🔥 Калорії: 0"
-    )
-
-    try:
-        bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=text, reply_markup=get_run_markup())
-    except:
-        pass
-
-    Timer(1, update_timer, args=(user_id,)).start()
-
-@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower())
-def stop_run(message):
+# === Завершення бігу ===
+@bot.message_handler(func=lambda msg: "завершити" in msg.text.lower() or "stop" in msg.text.lower())
+def end_run(message):
     user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+
     if user_id not in running_sessions:
-        bot.send_message(message.chat.id, "❗ Ти ще не почав біг.")
+        text = {
+            "ua": "❌ Пробіжка не активна. Натисни «Почати біг».",
+            "ru": "❌ Бег не активен. Нажми «Начать бег».",
+            "en": "❌ Run not active. Tap 'Start run'."
+        }
+        bot.send_message(message.chat.id, text.get(lang, text["ua"]))
         return
 
     start_time = running_sessions[user_id]["start"]
     end_time = datetime.now()
-    total_seconds = int((end_time - start_time).total_seconds())
-    minutes = total_seconds // 60
-    seconds = total_seconds % 60
-    formatted_time = f"{minutes:02d}:{seconds:02d}"
+    duration_min = round((end_time - start_time).seconds / 60)
 
-    weight = float(user_profiles.get(user_id, {}).get("weight", 70))
-    calories = int((total_seconds / 60) * (weight * 0.087))
+    # Вага з профілю
+    try:
+        with open("user_profiles.json", "r") as f:
+            profiles = json.load(f)
+        weight = int(profiles.get(user_id, {}).get("weight", 70))
+    except:
+        weight = 70
 
-    run_entry = {
-        "date": start_time.strftime("%Y-%m-%d"),
-        "duration_minutes": minutes,
-        "calories": calories
-    }
-
-    run_stats.setdefault(user_id, []).append(run_entry)
+    calories = calculate_calories(weight, duration_min)
+    save_run_result(user_id, duration_min, calories)
     del running_sessions[user_id]
 
-    profile = user_profiles.setdefault(user_id, {"coins": 0})
-    reward = 0
-    if len(run_stats[user_id]) == 1:
-        reward += 10
-        profile["last_reward"] = "+10 за першу пробіжку"
-    if minutes >= 30:
-        reward += 20
-        profile["last_reward"] = "+20 за пробіжку понад 30 хв"
+    text = {
+        "ua": f"✅ Пробіжка завершена!\n⏱ Тривалість: {duration_min} хв\n🔥 Спалено: {calories} ккал\n📦 Результат збережено.",
+        "ru": f"✅ Бег завершён!\n⏱ Длительность: {duration_min} мин\n🔥 Сожжено: {calories} ккал\n📦 Результат сохранён.",
+        "en": f"✅ Run finished!\n⏱ Duration: {duration_min} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
+    }
+    bot.send_message(message.chat.id, text.get(lang, text["ua"]))
 
-    dates = sorted([datetime.strptime(r["date"], "%Y-%m-%d") for r in run_stats[user_id]], reverse=True)
-    streak = 1
-    for i in range(1, len(dates)):
-        if (dates[i - 1] - dates[i]).days == 1:
-            streak += 1
-        else:
-            break
-    if streak >= 3:
-        reward += 30
-        profile["last_reward"] = "+30 за стрик 3+ днів"
-    if len(run_stats[user_id]) >= 11:
-        reward += 50
-        profile["last_reward"] = "+50 за рівень Звір"
+# === Перегляд останніх результатів ===
+@bot.message_handler(func=lambda msg: "результат" in msg.text.lower())
+def show_results(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
 
-    profile["coins"] += reward
-    save_all()
+    try:
+        with open(RUN_HISTORY_FILE, "r") as f:
+            run_history = json.load(f)
+        records = run_history.get(user_id, [])
+    except:
+        records = []
 
-    text = (
-        f"✅ Біг завершено!\n"
-        f"⏱ Час: {formatted_time}\n"
-        f"🔥 Калорії: {calories}\n"
-        f"🎁 Нагорода: +{reward} SHRK COINS"
-    )
+    if not records:
+        text = {
+            "ua": "❌ Немає збережених пробіжок.",
+            "ru": "❌ Нет сохранённых пробежек.",
+            "en": "❌ No saved runs."
+        }
+        bot.send_message(message.chat.id, text.get(lang, text["ua"]))
+        return
 
-    bot.send_message(message.chat.id, text, reply_markup=main_menu_markup(user_id))
+    response = {
+        "ua": "📊 Останні пробіжки:\n",
+        "ru": "📊 Последние пробежки:\n",
+        "en": "📊 Recent runs:\n"
+    }[lang]
+
+    for run in reversed(records[-3:]):
+        response += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
+
+    bot.send_message(message.chat.id, response)
 # === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
