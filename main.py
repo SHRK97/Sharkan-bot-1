@@ -50,8 +50,93 @@ def send_clean_message(chat_id, user_id, text, reply_markup=None):
 
 # === Таймер з автоочисткою ===
 class RunTimer:
-    def __init
+    def __init__(self, bot, chat_id, user_id, weight_kg, lang):
+        self.bot = bot
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.weight_kg = weight_kg
+        self.lang = lang
+        self.start_time = datetime.now()
+        self.active = True
+        self.message_id = None
+        self.thread = threading.Thread(target=self.loop)
+        self.thread.start()
 
+    def stop(self):
+        self.active = False
+        duration = round((datetime.now() - self.start_time).seconds / 60)
+        calories = calculate_calories(self.weight_kg, duration)
+        save_run_result(self.user_id, duration, calories)
+        return duration, calories
+
+    def loop(self):
+        while self.active:
+            minutes = (datetime.now() - self.start_time).seconds // 60
+            msg_text = {
+                "ua": f"🕒 Пройшло: {minutes} хв",
+                "ru": f"🕒 Прошло: {minutes} мин",
+                "en": f"🕒 Elapsed: {minutes} min"
+            }.get(self.lang, f"🕒 Пройшло: {minutes} хв")
+            try:
+                if self.message_id:
+                    self.bot.delete_message(self.chat_id, self.message_id)
+                msg = self.bot.send_message(self.chat_id, msg_text)
+                self.message_id = msg.message_id
+            except:
+                pass
+            time.sleep(60)
+
+# === Обработчик кнопки "Почати біг" ===
+@bot.message_handler(func=lambda msg: msg.text.lower() in ["почати біг", "начать бег", "start run"])
+def start_run(message):
+    user_id = str(message.from_user.id)
+    chat_id = message.chat.id
+    lang = get_lang(user_id)
+    weight = 70
+    try:
+        with open("user_profiles.json", "r") as f:
+            profile = json.load(f)
+        weight = int(profile.get(user_id, {}).get("weight", 70))
+    except:
+        pass
+
+    if user_id in running_timers:
+        running_timers[user_id].stop()
+    running_timers[user_id] = RunTimer(bot, chat_id, user_id, weight, lang)
+
+    texts = {
+        "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
+        "ru": "🏃‍♂️ Беги! Я фиксирую твое время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
+        "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
+    }
+    send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
+
+# === Обработчик кнопки "Завершити біг" ===
+@bot.message_handler(func=lambda msg: msg.text.lower() in ["завершити біг", "завершить бег", "stop run"])
+def stop_run(message):
+    user_id = str(message.from_user.id)
+    chat_id = message.chat.id
+    lang = get_lang(user_id)
+
+    if user_id not in running_timers:
+        texts = {
+            "ua": "❌ Біг не активний.",
+            "ru": "❌ Бег не запущен.",
+            "en": "❌ Run not active."
+        }
+        send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
+        return
+
+    duration, calories = running_timers[user_id].stop()
+    del running_timers[user_id]
+
+    result_text = {
+        "ua": f"✅ Пробіжка завершена!\n⏱ Тривалість: {duration} хв\n🔥 Спалено: {calories} ккал\n📦 Результат збережено.",
+        "ru": f"✅ Бег завершен!\n⏱ Длительность: {duration} мин\n🔥 Сожжено: {calories} ккал\n📦 Результат сохранён.",
+        "en": f"✅ Run completed!\n⏱ Duration: {duration} min\n🔥 Burned: {calories} kcal\n📦 Result saved."
+    }
+    send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
+    
 # === Загрузка мотиваций ===
 try:
     with open("motivations.json", "r", encoding="utf-8") as f:
