@@ -421,6 +421,12 @@ def menu_from_id(chat_id, user_id):
     bot.send_message(chat_id, "🧠 Обери розділ:" if lang == "ua" else
                                  "🧠 Выберите раздел:" if lang == "ru" else
                                  "🧠 Choose a section:", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text.lower() in ["⬅️ головне меню", "⬅️ главное меню", "⬅️ main menu"])
+def back_to_main_menu(message):
+    user_id = str(message.from_user.id)
+    menu_from_id(message.chat.id, user_id)
+    
 # === Запуск ===
 print(f"{VERSION} запущено.")
 bot.infinity_polling()
