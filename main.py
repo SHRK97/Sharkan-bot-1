@@ -2,11 +2,17 @@ import os
 import json
 import logging
 import random
+import threading
+import time
 from datetime import datetime
 from telebot import TeleBot, types
 
-import json
-from telebot import types
+# === Переменная окружения и инициализация бота ===
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
+
+bot = TeleBot(BOT_TOKEN)
 
 # === Завантаження книг при запуску ===
 try:
