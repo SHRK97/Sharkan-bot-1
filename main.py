@@ -15,7 +15,7 @@ if not BOT_TOKEN:
 bot = TeleBot(BOT_TOKEN)
 user_states = {}
 
-# === Завантаження книг при запуску ===
+
 # === Завантаження книг ===
 try:
     with open("books_ua.json", "r", encoding="utf-8") as f:
@@ -23,15 +23,17 @@ try:
 except Exception as e:
     print(f"Помилка при завантаженні книг: {e}")
     all_books = []
-    
-    @bot.message_handler(func=lambda msg: msg.text in ["📚 Книги SHARKAN"])
-    def show_book_list(message):
+
+# === Меню: Список книг ===
+@bot.message_handler(func=lambda msg: msg.text in ["📚 Книги SHARKAN"])
+def show_book_list(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for book in all_books:
         markup.add(f"📖 {book['title']}")
     markup.add("⬅️ Головне меню")
     bot.send_message(message.chat.id, "📚 Обери книгу:", reply_markup=markup)
 
+# === Обробка вибору книги ===
 @bot.message_handler(func=lambda msg: msg.text.startswith("📖 "))
 def handle_book_selection(message):
     user_id = str(message.from_user.id)
@@ -45,6 +47,7 @@ def handle_book_selection(message):
             return show_book_page(message.chat.id, user_id)
     bot.send_message(message.chat.id, "❌ Книгу не знайдено.")
 
+# === Навігація по сторінках книги ===
 @bot.message_handler(func=lambda msg: msg.text in ["⬅️ Назад", "➡️ Вперед"])
 def handle_book_page_nav(message):
     user_id = str(message.from_user.id)
@@ -58,6 +61,7 @@ def handle_book_page_nav(message):
 
     show_book_page(message.chat.id, user_id)
 
+# === Показати сторінку ===
 def show_book_page(chat_id, user_id):
     state = user_states.get(user_id, {})
     title = state.get("book_title")
@@ -72,7 +76,12 @@ def show_book_page(chat_id, user_id):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             markup.row("⬅️ Назад", "➡️ Вперед")
             markup.add("⬅️ Головне меню")
-            bot.send_message(chat_id, f"📘 *{title}*\n\n📄 Сторінка {page+1}:\n\n{pages[page]}", parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(
+                chat_id,
+                f"📘 *{title}*\n\n📄 Сторінка {page + 1}:\n\n{pages[page]}",
+                parse_mode="Markdown",
+                reply_markup=markup
+            )
             return
     
 # === Загрузка мотиваций ===
