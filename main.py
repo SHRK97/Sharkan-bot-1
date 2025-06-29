@@ -25,7 +25,7 @@ except Exception as e:
     all_books = []
     
     @bot.message_handler(func=lambda msg: msg.text in ["📚 Книги SHARKAN"])
-def show_book_list(message):
+    def show_book_list(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for book in all_books:
         markup.add(f"📖 {book['title']}")
