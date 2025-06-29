@@ -13,6 +13,7 @@ if not BOT_TOKEN:
     raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
 
 bot = TeleBot(BOT_TOKEN)
+user_states = {}
 
 # === Завантаження книг при запуску ===
 try:
