@@ -16,62 +16,64 @@ bot = TeleBot(BOT_TOKEN)
 user_states = {}
 
 # === Завантаження книг при запуску ===
+# === Завантаження книг ===
 try:
-    with open("думай_і_багатій_ua.json", "r", encoding="utf-8") as f:
-        book_think_rich = json.load(f)
-    with open("сила_звички_ua.json", "r", encoding="utf-8") as f:
-        book_habit = json.load(f)
+    with open("books_ua.json", "r", encoding="utf-8") as f:
+        all_books = json.load(f)
 except Exception as e:
     print(f"Помилка при завантаженні книг: {e}")
-    book_think_rich, book_habit = [], []
-
-# === Вибір книги ===
-@bot.message_handler(func=lambda msg: msg.text == "📚 Книги SHARKAN")
-def book_menu(message):
+    all_books = []
+    
+    @bot.message_handler(func=lambda msg: msg.text in ["📚 Книги SHARKAN"])
+def show_book_list(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📘 Думай і багатій", "📙 Сила звички")
+    for book in all_books:
+        markup.add(f"📖 {book['title']}")
     markup.add("⬅️ Головне меню")
-    bot.send_message(message.chat.id, "📚 Обери книгу для читання:", reply_markup=markup)
+    bot.send_message(message.chat.id, "📚 Обери книгу:", reply_markup=markup)
 
-# === Обробка вибору книги ===
-@bot.message_handler(func=lambda msg: msg.text in ["📘 Думай і багатій", "📙 Сила звички"])
-def read_book(message):
+@bot.message_handler(func=lambda msg: msg.text.startswith("📖 "))
+def handle_book_selection(message):
     user_id = str(message.from_user.id)
-    book = book_think_rich if message.text == "📘 Думай і багатій" else book_habit
-    if not book:
-        bot.send_message(message.chat.id, "⚠️ Книга недоступна.")
-        return
-    user_states[user_id] = {"book": message.text, "page": 0}
-    show_page(message.chat.id, user_id)
+    title = message.text.replace("📖 ", "")
+    for book in all_books:
+        if book["title"] == title:
+            user_states[user_id] = {
+                "book_title": title,
+                "page": 0
+            }
+            return show_book_page(message.chat.id, user_id)
+    bot.send_message(message.chat.id, "❌ Книгу не знайдено.")
 
-# === Кнопки ⬅️➡️ для навігації ===
 @bot.message_handler(func=lambda msg: msg.text in ["⬅️ Назад", "➡️ Вперед"])
-def flip_page(message):
+def handle_book_page_nav(message):
     user_id = str(message.from_user.id)
-    state = user_states.get(user_id, {})
-    if "book" not in state: return
+    if user_id not in user_states or "book_title" not in user_states[user_id]:
+        return
 
     if message.text == "➡️ Вперед":
-        state["page"] += 1
-    elif message.text == "⬅️ Назад" and state["page"] > 0:
-        state["page"] -= 1
+        user_states[user_id]["page"] += 1
+    elif message.text == "⬅️ Назад" and user_states[user_id]["page"] > 0:
+        user_states[user_id]["page"] -= 1
 
-    show_page(message.chat.id, user_id)
+    show_book_page(message.chat.id, user_id)
 
-# === Показати сторінку ===
-def show_page(chat_id, user_id):
+def show_book_page(chat_id, user_id):
     state = user_states.get(user_id, {})
-    book = book_think_rich if state.get("book") == "📘 Думай і багатій" else book_habit
+    title = state.get("book_title")
     page = state.get("page", 0)
 
-    if page >= len(book):
-        bot.send_message(chat_id, "📖 Це остання сторінка.")
-        return
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("⬅️ Назад", "➡️ Вперед")
-    markup.add("⬅️ Головне меню")
-    bot.send_message(chat_id, f"📖 Сторінка {page+1}:\n\n{book['pages'][page]}", reply_markup=markup)
+    for book in all_books:
+        if book["title"] == title:
+            pages = book.get("pages", [])
+            if page < 0 or page >= len(pages):
+                bot.send_message(chat_id, "📖 Це остання сторінка.")
+                return
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.row("⬅️ Назад", "➡️ Вперед")
+            markup.add("⬅️ Головне меню")
+            bot.send_message(chat_id, f"📘 *{title}*\n\n📄 Сторінка {page+1}:\n\n{pages[page]}", parse_mode="Markdown", reply_markup=markup)
+            return
     
 # === Загрузка мотиваций ===
 try:
