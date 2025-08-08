@@ -4,7 +4,7 @@ import logging
 import random
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from telebot import TeleBot, types
 
 # === Переменная окружения и инициализация бота ===
@@ -13,7 +13,7 @@ if not BOT_TOKEN:
     raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
 
 bot = TeleBot(BOT_TOKEN)
-VERSION = "SHARKAN BOT v1.0 — MULTILANG + GENDER"
+VERSION = "SHARKAN BOT v1.2 — RUN + BOOKS + PROFILE + PLAN + STATS + COINS"
 
 # === Логирование ===
 logging.basicConfig(
@@ -45,7 +45,6 @@ for uid, profile in user_profiles.items():
     if "language" in profile:
         user_lang[uid] = profile["language"]
 
-# === Вспомогательные ===
 def get_lang(user_id: str) -> str:
     return user_lang.get(user_id, "ua")
 
@@ -72,7 +71,6 @@ def show_book_page(chat_id, user_id):
             if not pages:
                 bot.send_message(chat_id, "❌ Книга порожня.")
                 return
-            # Нормализуем индекс
             page = clamp(page, 0, len(pages) - 1)
             user_states[user_id]["page"] = page
 
@@ -182,7 +180,7 @@ def save_run_result(user_id, duration_min, calories):
     except Exception:
         data = {}
     data.setdefault(user_id, []).append({
-        "date": datetime.now().strftime("%d.%m.%Y"),
+        "date": datetime.now().strftime("%Y-%m-%d"),
         "duration_min": duration_min,
         "calories": calories
     })
@@ -216,10 +214,16 @@ class RunTimer:
 
     def stop(self):
         self.active = False
-        duration = round((datetime.now() - self.start_time).seconds / 60)
+        duration = max(1, round((datetime.now() - self.start_time).seconds / 60))
         calories = calculate_calories(self.weight_kg, duration)
         save_run_result(self.user_id, duration, calories)
-        return duration, calories
+        # === Начислим SHRK COINS ===
+        profile = user_profiles.setdefault(self.user_id, {})
+        coins = int(profile.get("coins", 0))
+        coins += max(1, duration // 10) * 5  # 5 монет за каждые 10 минут (минимум 5)
+        profile["coins"] = coins
+        save_profiles()
+        return duration, calories, coins
 
     def loop(self):
         while self.active:
@@ -285,13 +289,14 @@ def stop_run(message):
         send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
         return
 
-    duration, calories = running_timers[user_id].stop()
+    duration, calories, coins = running_timers[user_id].stop()
     del running_timers[user_id]
 
+    unit = {"ua": "хв", "ru": "мин", "en": "min"}[lang if lang in ["ua","ru","en"] else "ua"]
     result_text = {
-        "ua": f"✅ Завершено!\n⏱ Тривалість: {duration} хв\n🔥 Калорії: {calories} ккал",
-        "ru": f"✅ Готово!\n⏱ Длительность: {duration} мин\n🔥 Калории: {calories} ккал",
-        "en": f"✅ Done!\n⏱ Duration: {duration} min\n🔥 Calories: {calories} kcal"
+        "ua": f"✅ Завершено!\n⏱ Тривалість: {duration} {unit}\n🔥 Калорії: {calories} ккал\n🪙 Монети: +{max(5, (duration//10)*5)} (всього: {coins})",
+        "ru": f"✅ Готово!\n⏱ Длительность: {duration} {unit}\n🔥 Калории: {calories} ккал\n🪙 Монеты: +{max(5, (duration//10)*5)} (всего: {coins})",
+        "en": f"✅ Done!\n⏱ Duration: {duration} {unit}\n🔥 Calories: {calories} kcal\n🪙 Coins: +{max(5, (duration//10)*5)} (total: {coins})"
     }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
 
@@ -412,7 +417,7 @@ def handle_gender(call):
     bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
     menu_from_id(chat_id, user_id)
 
-# === Главное меню ===
+# === Главное меню и обработчики кнопок ===
 def menu_from_id(chat_id, user_id):
     lang = get_lang(user_id)
     gender = user_profiles.get(user_id, {}).get("gender", "male")
@@ -511,6 +516,298 @@ def back_to_main_menu(message):
     user_id = str(message.from_user.id)
     menu_from_id(message.chat.id, user_id)
 
-# === Запуск ===
+# === Профиль: вес/рост/цель ===
+profile_wizard = {}  # user_id -> {"step": ..., "tmp": {...}}
+
+def start_profile(chat_id, user_id):
+    lang = get_lang(user_id)
+    profile_wizard[user_id] = {"step": "weight", "tmp": {}}
+    prompt = {
+        "ua": "⚖️ Вкажи свою вагу (кг), напр.: 75",
+        "ru": "⚖️ Укажи свой вес (кг), напр.: 75",
+        "en": "⚖️ Enter your weight (kg), e.g. 75"
+    }
+    bot.send_message(chat_id, prompt.get(lang, prompt["ua"]))
+
+@bot.message_handler(func=lambda m: m.text and m.text in [
+    "👤 Мій профіль","👤 Мой профиль","👤 My Profile","👑 Мій шлях","👑 Мой путь","👑 My Path"
+])
+def on_profile_button(message):
+    user_id = str(message.from_user.id)
+    profile = user_profiles.get(user_id, {})
+    lang = get_lang(user_id)
+    if not profile.get("weight") or not profile.get("height") or not profile.get("goal"):
+        start_profile(message.chat.id, user_id)
+        return
+
+    txt = {
+        "ua": f"👤 Профіль:\nВага: {profile.get('weight','?')} кг\nЗріст: {profile.get('height','?')} см\nЦіль: {profile.get('goal','?')}\nМонети: {profile.get('coins',0)}",
+        "ru": f"👤 Профиль:\nВес: {profile.get('weight','?')} кг\nРост: {profile.get('height','?')} см\nЦель: {profile.get('goal','?')}\nМонеты: {profile.get('coins',0)}",
+        "en": f"👤 Profile:\nWeight: {profile.get('weight','?')} kg\nHeight: {profile.get('height','?')} cm\nGoal: {profile.get('goal','?')}\nCoins: {profile.get('coins',0)}",
+    }
+    bot.send_message(message.chat.id, txt.get(lang, txt["ua"]))
+
+@bot.message_handler(func=lambda m: str(m.from_user.id) in profile_wizard)
+def profile_flow(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    data = profile_wizard[user_id]
+    step = data["step"]
+    value = (message.text or "").strip()
+
+    def ask_height():
+        data["step"] = "height"
+        q = {
+            "ua":"📏 Тепер зріст (см), напр.: 180",
+            "ru":"📏 Теперь рост (см), напр.: 180",
+            "en":"📏 Now height (cm), e.g. 180"
+        }
+        bot.send_message(message.chat.id, q.get(lang,q["ua"]))
+
+    def ask_goal():
+        data["step"] = "goal"
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        if lang == "ru":
+            kb.add("Похудеть","Набрать массу")
+            kb.add("Поддерживать форму")
+        elif lang == "en":
+            kb.add("Lose weight","Gain muscle")
+            kb.add("Maintain")
+        else:
+            kb.add("Схуднути","Набрати масу")
+            kb.add("Підтримувати форму")
+        bot.send_message(message.chat.id, {
+            "ua":"🎯 Обери ціль:",
+            "ru":"🎯 Выбери цель:",
+            "en":"🎯 Choose your goal:"
+        }.get(lang,"🎯 Обери ціль:"), reply_markup=kb)
+
+    if step == "weight":
+        if not value.isdigit() or not (30 <= int(value) <= 300):
+            bot.send_message(message.chat.id, {"ua":"Введи число 30–300.","ru":"Введи число 30–300.","en":"Enter 30–300."}[lang])
+            return
+        data["tmp"]["weight"] = int(value)
+        ask_height()
+        return
+
+    if step == "height":
+        if not value.isdigit() or not (120 <= int(value) <= 250):
+            bot.send_message(message.chat.id, {"ua":"Введи число 120–250.","ru":"Введи число 120–250.","en":"Enter 120–250."}[lang])
+            return
+        data["tmp"]["height"] = int(value)
+        ask_goal()
+        return
+
+    if step == "goal":
+        goals_map = {
+            "ua": {"схуднути":"lose", "набрати масу":"gain", "підтримувати форму":"maintain"},
+            "ru": {"похудеть":"lose", "набрать массу":"gain", "поддерживать форму":"maintain"},
+            "en": {"lose weight":"lose", "gain muscle":"gain", "maintain":"maintain"},
+        }
+        key = value.lower()
+        goal_code = None
+        for gk, gm in goals_map.items():
+            if gk == lang and key in gm:
+                goal_code = gm[key]
+        if not goal_code:
+            bot.send_message(message.chat.id, {"ua":"Обери варіант з кнопок.","ru":"Выбери вариант с кнопок.","en":"Choose from buttons."}[lang])
+            return
+
+        # Сохраняем профиль
+        prof = user_profiles.setdefault(user_id, {})
+        prof.update(data["tmp"])
+        prof["goal"] = goal_code
+        prof.setdefault("coins", 0)
+        save_profiles()
+        profile_wizard.pop(user_id, None)
+
+        done = {"ua":"✅ Профіль збережено.","ru":"✅ Профиль сохранён.","en":"✅ Profile saved."}[lang]
+        bot.send_message(message.chat.id, done, reply_markup=types.ReplyKeyboardRemove())
+        menu_from_id(message.chat.id, user_id)
+        return
+
+# === План на сьогодні ===
+@bot.message_handler(func=lambda m: m.text and m.text in [
+    "🔥 План на сьогодні","🔥 План на сегодня","🔥 Today's Plan","🔥 Мій план","🔥 Мой план","🔥 My Plan"
+])
+def plan_today(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    prof = user_profiles.get(user_id, {})
+    weight = int(prof.get("weight", 70))
+    goal = prof.get("goal", "maintain")
+
+    # Простая логика генерации плана
+    if goal == "lose":
+        workout = [
+            "1) Берпі — 3×12 (відпочинок 60с)",
+            "2) Присідання з вагою тіла — 4×15 (45с)",
+            "3) Планка — 3×45с (30с)",
+            "4) Випади — 3×12/нога (60с)",
+            "5) Скакалка/кардіо — 10 хв помірно"
+        ]
+        kcal_target = max(500, 6 * weight)
+        meals = [
+            "Сніданок: йогурт + ягоди + жменя горіхів",
+            "Обід: куряче філе на парі + овочі",
+            "Вечеря: риба/тунець + салат",
+            "Перекус: яблуко/морква"
+        ]
+    elif goal == "gain":
+        workout = [
+            "1) Віджимання — 5×10-15 (90с)",
+            "2) Присідання — 5×12 (90с)",
+            "3) Тяга в нахилі (еластик/гантелі) — 4×12 (90с)",
+            "4) Жим над головою (гантелі/еластик) — 4×10 (90с)",
+            "5) Прес: скручування — 3×15 (60с)"
+        ]
+        kcal_target = max(2600, 30 * weight)
+        meals = [
+            "Сніданок: вівсянка + банан + арахісова паста",
+            "Обід: рис + курка/яловичина + овочі",
+            "Перекус: творог/йогурт + горіхи",
+            "Вечеря: паста/картопля + риба/м'ясо + салат"
+        ]
+    else:
+        workout = [
+            "1) Легка пробіжка — 20 хв",
+            "2) Віджимання — 3×12 (60с)",
+            "3) Присідання — 3×15 (60с)",
+            "4) Планка — 3×40с (30с)",
+            "5) Розтяжка — 10 хв"
+        ]
+        kcal_target = max(2000, 22 * weight)
+        meals = [
+            "Сніданок: омлет + овочі",
+            "Обід: гречка + індичка/курка + салат",
+            "Перекус: фрукти/горіхи",
+            "Вечеря: риба/овочі/салат"
+        ]
+
+    water = f"Вода: {round(weight*0.03,1)} л/день"
+    supps = "Добавки: вітамін D, омега-3, електроліти (за потреби)."
+
+    text_map = {
+        "ua": f"🗓 <b>План на сьогодні</b>\n\n<b>Тренування</b>:\n" + "\n".join(workout) +
+              f"\n\n<b>Харчування</b>:\n- " + "\n- ".join(meals) +
+              f"\n\n<b>Калорії (орієнтир)</b>: ~{kcal_target} ккал\n{water}\n{supps}",
+        "ru": f"🗓 <b>План на сегодня</b>\n\n<b>Тренировка</b>:\n" + "\n".join(workout) +
+              f"\n\n<b>Питание</b>:\n- " + "\n- ".join(meals) +
+              f"\n\n<b>Калории (ориентир)</b>: ~{kcal_target} ккал\n{water}\n{supps}",
+        "en": f"🗓 <b>Plan for today</b>\n\n<b>Workout</b>:\n" + "\n".join(workout) +
+              f"\n\n<b>Nutrition</b>:\n- " + "\n- ".join(meals) +
+              f"\n\n<b>Calories (target)</b>: ~{kcal_target} kcal\n{water}\nSupplements: vitamin D, omega-3, electrolytes."
+    }
+    bot.send_message(message.chat.id, text_map.get(lang, text_map["ua"]), parse_mode="HTML")
+
+# === Статистика / Progress ===
+def compute_streak(records):
+    if not records:
+        return 0
+    dates = sorted({r["date"] for r in records}, reverse=True)
+    # формат YYYY-MM-DD
+    today = datetime.now().date()
+    streak = 0
+    cur = today
+    dates_set = set(datetime.strptime(d, "%Y-%m-%d").date() for d in dates)
+    while cur in dates_set:
+        streak += 1
+        cur = cur - timedelta(days=1)
+    return streak
+
+@bot.message_handler(func=lambda m: m.text and m.text in ["📈 Статистика","📈 Прогрес / Ранги","📈 Statistics","📈 Progress / Ranks"])
+def show_stats(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    try:
+        with open("run_history.json","r",encoding="utf-8") as f:
+            data = json.load(f)
+        recs = data.get(user_id, [])
+    except Exception:
+        recs = []
+
+    total_runs = len(recs)
+    total_min = sum(r.get("duration_min",0) for r in recs)
+    total_kcal = sum(r.get("calories",0) for r in recs)
+    streak = compute_streak(recs)
+
+    txt = {
+        "ua": f"📈 <b>Статистика</b>\nПробіжок: {total_runs}\nХвилин: {total_min}\nКалорій: {total_kcal}\nСтрік: {streak} дн.",
+        "ru": f"📈 <b>Статистика</b>\nПробежек: {total_runs}\nМинут: {total_min}\nКалорий: {total_kcal}\nСтик: {streak} дн.",
+        "en": f"📈 <b>Statistics</b>\nRuns: {total_runs}\nMinutes: {total_min}\nCalories: {total_kcal}\nStreak: {streak} days"
+    }
+    bot.send_message(message.chat.id, txt.get(lang, txt["ua"]), parse_mode="HTML")
+
+# === SHRK COINS ===
+@bot.message_handler(func=lambda m: m.text and m.text in ["🪙 SHRK COINS","💎 SHRK COINS"])
+def coins_handler(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    coins = int(user_profiles.get(user_id, {}).get("coins", 0))
+    txt = {
+        "ua": f"🪙 Твій баланс SHRK COINS: <b>{coins}</b>",
+        "ru": f"🪙 Твой баланс SHRK COINS: <b>{coins}</b>",
+        "en": f"🪙 Your SHRK COINS balance: <b>{coins}</b>"
+    }
+    bot.send_message(message.chat.id, txt.get(lang, txt["ua"]), parse_mode="HTML")
+
+# === Настройки ===
+@bot.message_handler(func=lambda m: m.text and m.text in ["⚙️ Налаштування","⚙️ Настройки","⚙️ Settings"])
+def settings_menu(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if lang == "ru":
+        kb.add("🌐 Сменить язык","🧹 Сбросить профиль")
+        kb.add("⬅️ Главное меню")
+        txt = "⚙️ Настройки"
+    elif lang == "en":
+        kb.add("🌐 Change language","🧹 Reset profile")
+        kb.add("⬅️ Main menu")
+        txt = "⚙️ Settings"
+    else:
+        kb.add("🌐 Змінити мову","🧹 Скинути профіль")
+        kb.add("⬅️ Головне меню")
+        txt = "⚙️ Налаштування"
+    bot.send_message(message.chat.id, txt, reply_markup=kb)
+
+@bot.message_handler(func=lambda m: m.text and m.text in ["🌐 Сменить язык","🌐 Change language","🌐 Змінити мову"])
+def settings_change_lang(message):
+    markup = types.InlineKeyboardMarkup()
+    for code, name in LANGUAGES.items():
+        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
+    bot.send_message(message.chat.id, "🌐 Обери мову / Choose language / Выберите язык:", reply_markup=markup)
+
+@bot.message_handler(func=lambda m: m.text and m.text in ["🧹 Сбросить профиль","🧹 Reset profile","🧹 Скинути профіль"])
+def reset_profile(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    user_profiles[user_id] = {"language": lang, "coins": 0}
+    save_profiles()
+    bot.send_message(message.chat.id, {"ua":"✅ Профіль скинуто.","ru":"✅ Профиль сброшен.","en":"✅ Profile reset."}[lang])
+    menu_from_id(message.chat.id, user_id)
+
+# === Заглушки для ещё не реализованных разделов ===
+@bot.message_handler(func=lambda m: m.text and m.text in ["🥷 Бій з Тінню","🥷 Бой с Тенью","🥷 Shadow Fight"])
+def shadow_fight(message):
+    lang = get_lang(str(message.from_user.id))
+    txt = {
+        "ua":"🥷 Розділ готується. Хочеш таймер раундів 3×1 хв з озвучкою — скажи, додам.",
+        "ru":"🥷 Раздел в подготовке. Хочешь таймер раундов 3×1 мин с озвучкой — скажи, добавлю.",
+        "en":"🥷 Coming soon. Want a 3×1 min round timer with voice cues? Say the word."
+    }
+    bot.send_message(message.chat.id, txt.get(lang, txt["ua"]))
+
+@bot.message_handler(func=lambda m: m.text and m.text in ["🎵 Музика","🎵 Музыка","🎵 Music"])
+def music_section(message):
+    lang = get_lang(str(message.from_user.id))
+    txt = {
+        "ua":"🎵 Додам плейлисти (олдскул/техно/реп) та оновлення. Потрібні MP3 — скину формати.",
+        "ru":"🎵 Добавлю плейлисты (олдскул/техно/рэп) и обновления. Нужны MP3 — подскажу форматы.",
+        "en":"🎵 I’ll add playlists (old-school/techno/rap) and updates. Provide MP3s and I’ll wire them in."
+    }
+    bot.send_message(message.chat.id, txt.get(lang, txt["ua"]))
+
+# === Старт ===
 print(f"{VERSION} запущено.")
 bot.infinity_polling(skip_pending=True)
