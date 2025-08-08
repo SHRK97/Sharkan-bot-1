@@ -1,3 +1,4 @@
+# main.py
 import os
 import json
 import logging
@@ -13,7 +14,7 @@ if not BOT_TOKEN:
     raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
 
 bot = TeleBot(BOT_TOKEN)
-VERSION = "SHARKAN BOT v1.2 — RUN + BOOKS + PROFILE + PLAN + STATS + COINS"
+VERSION = "SHARKAN BOT v1.3 — RUN + BOOKS + PROFILE + PLAN + STATS + COINS + SHOP + BACKUP + LEADERBOARD"
 
 # === Логирование ===
 logging.basicConfig(
@@ -49,7 +50,9 @@ def get_lang(user_id: str) -> str:
     return user_lang.get(user_id, "ua")
 
 # === Книги ===
-user_states = {}
+user_states = {}         # состояние чтения книги
+page_jump_state = {}     # ожидание ввода номера страницы
+
 try:
     with open("books_ua.json", "r", encoding="utf-8") as f:
         all_books = json.load(f)
@@ -66,7 +69,7 @@ def show_book_page(chat_id, user_id):
     page = state.get("page", 0)
 
     for book in all_books:
-        if book["title"] == title:
+        if book.get("title") == title:
             pages = book.get("pages", [])
             if not pages:
                 bot.send_message(chat_id, "❌ Книга порожня.")
@@ -76,7 +79,7 @@ def show_book_page(chat_id, user_id):
 
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             markup.row("⬅️ Назад", "➡️ Вперед")
-            markup.add("⬅️ Головне меню")
+            markup.add("🔢 Перейти до сторінки", "⬅️ Головне меню")
             bot.send_message(
                 chat_id,
                 f"📘 *{title}*\n\n📄 Сторінка {page + 1} з {len(pages)}:\n\n{pages[page]}",
@@ -90,7 +93,7 @@ def show_book_page(chat_id, user_id):
 def show_book_list(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for book in all_books:
-        markup.add(f"📖 {book['title']}")
+        markup.add(f"📖 {book.get('title','Без назви')}")
     markup.add("⬅️ Головне меню")
     bot.send_message(message.chat.id, "📚 Обери книгу:", reply_markup=markup)
 
@@ -99,7 +102,7 @@ def handle_book_selection(message):
     user_id = str(message.from_user.id)
     title = message.text.replace("📖 ", "", 1).strip()
     for book in all_books:
-        if book["title"] == title:
+        if book.get("title") == title:
             user_states[user_id] = {"book_title": title, "page": 0}
             show_book_page(message.chat.id, user_id)
             return
@@ -115,6 +118,40 @@ def handle_book_page_nav(message):
     elif message.text == "⬅️ Назад":
         user_states[user_id]["page"] -= 1
     show_book_page(message.chat.id, user_id)
+
+@bot.message_handler(func=lambda m: m.text in ["🔢 Перейти до сторінки","🔢 Перейти к странице","🔢 Go to page"])
+def ask_page_num(message):
+    uid = str(message.from_user.id)
+    st = user_states.get(uid, {})
+    if "book_title" not in st:
+        return
+    page_jump_state[uid] = st["book_title"]
+    bot.send_message(message.chat.id, "Введи номер сторінки / страницы / page (1..N).")
+
+@bot.message_handler(func=lambda m: str(m.from_user.id) in page_jump_state and (m.text or "").strip().isdigit())
+def do_page_jump(message):
+    uid = str(message.from_user.id)
+    title = page_jump_state.get(uid)
+    if not title:
+        return
+    target = int(message.text.strip()) - 1
+
+    book = next((b for b in all_books if b.get("title") == title), None)
+    if not book:
+        bot.send_message(message.chat.id, "❌ Книга не знайдена / не найдена.")
+        page_jump_state.pop(uid, None)
+        return
+
+    pages = book.get("pages", [])
+    if not pages:
+        bot.send_message(message.chat.id, "❌ У цієї книги немає сторінок.")
+        page_jump_state.pop(uid, None)
+        return
+
+    target = clamp(target, 0, len(pages) - 1)
+    user_states.setdefault(uid, {})["page"] = target
+    page_jump_state.pop(uid, None)
+    show_book_page(message.chat.id, uid)
 
 # === Мотивации и советы тренеров ===
 try:
@@ -245,7 +282,7 @@ class RunTimer:
 def text_contains_any(text: str, options: list[str]) -> bool:
     return any(opt in text for opt in options)
 
-@bot.message_handler(func=lambda m: m.text and text_contains_any(m.text, ["🏁 Почати біг", "🏁 Начать бег", "🏁 Start run"]) or
+@bot.message_handler(func=lambda m: (m.text and text_contains_any(m.text, ["🏁 Почати біг", "🏁 Начать бег", "🏁 Start run"])) or
                                   (m.text and m.text.lower() in ["почати біг", "начать бег", "start run"]))
 def start_run(message):
     user_id = str(message.from_user.id)
@@ -259,6 +296,7 @@ def start_run(message):
         pass
 
     if user_id in running_timers:
+        # если уже шёл таймер — мягко перезапускаем
         try:
             running_timers[user_id].stop()
         except Exception:
@@ -273,7 +311,7 @@ def start_run(message):
     }
     send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
 
-@bot.message_handler(func=lambda m: m.text and text_contains_any(m.text, ["⛔️ Завершити біг", "⛔️ Завершить бег", "⛔️ Stop run"]) or
+@bot.message_handler(func=lambda m: (m.text and text_contains_any(m.text, ["⛔️ Завершити біг", "⛔️ Завершить бег", "⛔️ Stop run"])) or
                                   (m.text and m.text.lower() in ["завершити біг", "завершить бег", "stop run"]))
 def stop_run(message):
     user_id = str(message.from_user.id)
@@ -293,10 +331,11 @@ def stop_run(message):
     del running_timers[user_id]
 
     unit = {"ua": "хв", "ru": "мин", "en": "min"}[lang if lang in ["ua","ru","en"] else "ua"]
+    reward = max(5, (duration // 10) * 5)
     result_text = {
-        "ua": f"✅ Завершено!\n⏱ Тривалість: {duration} {unit}\n🔥 Калорії: {calories} ккал\n🪙 Монети: +{max(5, (duration//10)*5)} (всього: {coins})",
-        "ru": f"✅ Готово!\n⏱ Длительность: {duration} {unit}\n🔥 Калории: {calories} ккал\n🪙 Монеты: +{max(5, (duration//10)*5)} (всего: {coins})",
-        "en": f"✅ Done!\n⏱ Duration: {duration} {unit}\n🔥 Calories: {calories} kcal\n🪙 Coins: +{max(5, (duration//10)*5)} (total: {coins})"
+        "ua": f"✅ Завершено!\n⏱ Тривалість: {duration} {unit}\n🔥 Калорії: {calories} ккал\n🪙 Монети: +{reward} (всього: {coins})",
+        "ru": f"✅ Готово!\n⏱ Длительность: {duration} {unit}\n🔥 Калории: {calories} ккал\n🪙 Монеты: +{reward} (всего: {coins})",
+        "en": f"✅ Done!\n⏱ Duration: {duration} {unit}\n🔥 Calories: {calories} kcal\n🪙 Coins: +{reward} (total: {coins})"
     }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
 
@@ -354,9 +393,18 @@ def show_run_results(message):
         result.append(f"📅 {run['date']} — {run['duration_min']} {unit} — {run['calories']} ккал")
     send_clean_message(chat_id, user_id, "\n".join(result))
 
-# === Язык/гендер ===
+# === /start, выбор языка/гендера, сохранение имени ===
 @bot.message_handler(commands=["start"])
 def start(message):
+    user_id = str(message.from_user.id)
+
+    # сохраняем имя/ник для рейтинга/подписей
+    profile = user_profiles.setdefault(user_id, {})
+    profile["first_name"] = message.from_user.first_name or profile.get("first_name")
+    profile["last_name"] = message.from_user.last_name or profile.get("last_name")
+    profile["username"] = message.from_user.username or profile.get("username")
+    save_profiles()
+
     markup = types.InlineKeyboardMarkup()
     for code, name in LANGUAGES.items():
         markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
@@ -626,7 +674,7 @@ def profile_flow(message):
         menu_from_id(message.chat.id, user_id)
         return
 
-# === План на сьогодні ===
+# === План на сьогодні / План на сегодня ===
 @bot.message_handler(func=lambda m: m.text and m.text in [
     "🔥 План на сьогодні","🔥 План на сегодня","🔥 Today's Plan","🔥 Мій план","🔥 Мой план","🔥 My Plan"
 ])
@@ -693,10 +741,10 @@ def plan_today(message):
               f"\n\n<b>Калорії (орієнтир)</b>: ~{kcal_target} ккал\n{water}\n{supps}",
         "ru": f"🗓 <b>План на сегодня</b>\n\n<b>Тренировка</b>:\n" + "\n".join(workout) +
               f"\n\n<b>Питание</b>:\n- " + "\n- ".join(meals) +
-              f"\n\n<b>Калории (ориентир)</b>: ~{kcal_target} ккал\n{water}\n{supps}",
+              f"\n\n<b>Калории (ориентир)</b>: ~{kcal_target} ккал\nВода: {round(weight*0.03,1)} л/день\nДобавки: витамин D, омега-3, электролиты.",
         "en": f"🗓 <b>Plan for today</b>\n\n<b>Workout</b>:\n" + "\n".join(workout) +
               f"\n\n<b>Nutrition</b>:\n- " + "\n- ".join(meals) +
-              f"\n\n<b>Calories (target)</b>: ~{kcal_target} kcal\n{water}\nSupplements: vitamin D, omega-3, electrolytes."
+              f"\n\n<b>Calories (target)</b>: ~{kcal_target} kcal\nWater: {round(weight*0.03,1)} L/day\nSupplements: vitamin D, omega-3, electrolytes."
     }
     bot.send_message(message.chat.id, text_map.get(lang, text_map["ua"]), parse_mode="HTML")
 
@@ -705,7 +753,6 @@ def compute_streak(records):
     if not records:
         return 0
     dates = sorted({r["date"] for r in records}, reverse=True)
-    # формат YYYY-MM-DD
     today = datetime.now().date()
     streak = 0
     cur = today
@@ -751,6 +798,93 @@ def coins_handler(message):
     }
     bot.send_message(message.chat.id, txt.get(lang, txt["ua"]), parse_mode="HTML")
 
+# === SHOP (инлайн-покупки за монеты) ===
+SHOP_ITEMS = [
+    {"id": "badge_gold", "title": "Золотий бейдж / Золотой бейдж / Gold Badge", "price": 50},
+    {"id": "theme_dark", "title": "Темна тема / Тёмная тема / Dark Theme", "price": 30},
+    {"id": "sound_pack", "title": "Пакет звуків / Пакет звуков / Sound Pack", "price": 20},
+]
+
+def get_inventory(uid: str):
+    return user_profiles.setdefault(uid, {}).setdefault("inventory", [])
+
+@bot.message_handler(func=lambda m: m.text and m.text in ["🛍 Магазин","🛍 Shop"])
+def shop_handler(message):
+    uid = str(message.from_user.id)
+    coins = int(user_profiles.setdefault(uid, {}).get("coins", 0))
+
+    markup = types.InlineKeyboardMarkup()
+    for item in SHOP_ITEMS:
+        markup.add(types.InlineKeyboardButton(
+            f"{item['title']} — {item['price']} 🪙",
+            callback_data=f"buy_{item['id']}"
+        ))
+
+    lang = get_lang(uid)
+    caption = {
+        "ua": f"🛍 Твій баланс: {coins} 🪙\nОбери товар:",
+        "ru": f"🛍 Твой баланс: {coins} 🪙\nВыбери товар:",
+        "en": f"🛍 Your balance: {coins} 🪙\nPick an item:"
+    }[lang if lang in ["ua","ru","en"] else "ua"]
+
+    bot.send_message(message.chat.id, caption, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
+def buy_item(call):
+    uid = str(call.from_user.id)
+    item_id = call.data.replace("buy_", "", 1)
+    profile = user_profiles.setdefault(uid, {})
+    coins = int(profile.get("coins", 0))
+
+    item = next((x for x in SHOP_ITEMS if x["id"] == item_id), None)
+    if not item:
+        bot.answer_callback_query(call.id, "❌ Товар не найден.")
+        return
+
+    if coins < item["price"]:
+        bot.answer_callback_query(call.id, "💸 Недостаточно монет.")
+        return
+
+    # списываем монеты, кладём в инвентарь
+    profile["coins"] = coins - item["price"]
+    inv = get_inventory(uid)
+    if item_id not in inv:
+        inv.append(item_id)
+    save_profiles()
+
+    bot.answer_callback_query(call.id, "✅ Покупка успешна!")
+    bot.send_message(call.message.chat.id, f"✅ Куплено: {item['title']}\n💰 Остаток: {profile['coins']} 🪙")
+
+# === Лидерборд (топ-10 по минутам) ===
+@bot.message_handler(func=lambda m: m.text and m.text in ["🏆 Рейтинг SHARKAN","🏆 SHARKAN Ranking"])
+def leaderboard_handler(message):
+    # читаем историю пробежек
+    try:
+        with open("run_history.json", "r", encoding="utf-8") as f:
+            rh = json.load(f)
+    except Exception:
+        rh = {}
+
+    # собираем сумму минут по каждому пользователю
+    totals = []
+    for uid, recs in rh.items():
+        total_min = sum(r.get("duration_min", 0) for r in recs)
+        totals.append((uid, total_min))
+
+    totals.sort(key=lambda x: x[1], reverse=True)
+    top = totals[:10]
+
+    lines = ["🏆 Топ-10 за минутами бега:"]
+    if not top:
+        lines.append("Пока пусто. Беги первым! 🏃")
+    else:
+        for idx, (uid, mins) in enumerate(top, 1):
+            p = user_profiles.get(uid, {})
+            name = p.get("first_name") or p.get("username") or f"ID {uid}"
+            lines.append(f"{idx}. {name} — {mins} мин")
+
+    bot.send_message(message.chat.id, "\n".join(lines))
+
 # === Настройки ===
 @bot.message_handler(func=lambda m: m.text and m.text in ["⚙️ Налаштування","⚙️ Настройки","⚙️ Settings"])
 def settings_menu(message):
@@ -782,10 +916,72 @@ def settings_change_lang(message):
 def reset_profile(message):
     user_id = str(message.from_user.id)
     lang = get_lang(user_id)
+    # сохраняем язык, остальное сбрасываем
     user_profiles[user_id] = {"language": lang, "coins": 0}
     save_profiles()
     bot.send_message(message.chat.id, {"ua":"✅ Профіль скинуто.","ru":"✅ Профиль сброшен.","en":"✅ Profile reset."}[lang])
     menu_from_id(message.chat.id, user_id)
+
+# === Бэкап / Восстановление ===
+@bot.message_handler(commands=["backup"])
+def backup_cmd(message):
+    payload = {}
+    for fn in ["user_profiles.json", "run_history.json", "books_ua.json", "motivations.json", "coaches_tips.json"]:
+        try:
+            with open(fn, "r", encoding="utf-8") as f:
+                payload[fn] = json.load(f)
+        except Exception:
+            payload[fn] = {}
+    fname = f"backup_{int(time.time())}.json"
+    with open(fname, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    bot.send_document(message.chat.id, open(fname, "rb"), caption="💾 Бэкап готов.")
+
+@bot.message_handler(commands=["restore"])
+def restore_cmd(message):
+    lang = get_lang(str(message.from_user.id))
+    txt = {
+        "ua": "📥 Надішли JSON-файл бекапу (який я створював /backup). Я його відновлю.",
+        "ru": "📥 Пришли JSON-файл бэкапа (который я создавал /backup). Я восстановлюсь из него.",
+        "en": "📥 Send the JSON backup file (made by /backup). I will restore from it."
+    }[lang if lang in ["ua","ru","en"] else "ua"]
+    bot.send_message(message.chat.id, txt)
+
+@bot.message_handler(content_types=["document"])
+def restore_on_doc(message):
+    doc = message.document
+    if not doc or not doc.file_name.endswith(".json"):
+        return
+    try:
+        fi = bot.get_file(doc.file_id)
+        data = bot.download_file(fi.file_path)
+        payload = json.loads(data.decode("utf-8"))
+
+        for fn in ["user_profiles.json", "run_history.json", "books_ua.json", "motivations.json", "coaches_tips.json"]:
+            if fn in payload:
+                with open(fn, "w", encoding="utf-8") as f:
+                    json.dump(payload[fn], f, ensure_ascii=False, indent=2)
+
+        # перезагружаем в память только то, что используется в рантайме
+        global user_profiles, all_books, motivation_data, coaches_data, user_lang
+        with open("user_profiles.json", "r", encoding="utf-8") as f:
+            user_profiles = json.load(f)
+        with open("books_ua.json", "r", encoding="utf-8") as f:
+            all_books = json.load(f)
+        with open("motivations.json", "r", encoding="utf-8") as f:
+            motivation_data = json.load(f)
+        with open("coaches_tips.json", "r", encoding="utf-8") as f:
+            coaches_data = json.load(f)
+
+        # восстановим user_lang из профилей
+        user_lang = {}
+        for uid, profile in user_profiles.items():
+            if "language" in profile:
+                user_lang[uid] = profile["language"]
+
+        bot.send_message(message.chat.id, "✅ Відновлено / Восстановлено.")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ Помилка/Ошибка: {e}")
 
 # === Заглушки для ещё не реализованных разделов ===
 @bot.message_handler(func=lambda m: m.text and m.text in ["🥷 Бій з Тінню","🥷 Бой с Тенью","🥷 Shadow Fight"])
