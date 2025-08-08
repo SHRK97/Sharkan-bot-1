@@ -13,100 +13,6 @@ if not BOT_TOKEN:
     raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
 
 bot = TeleBot(BOT_TOKEN)
-user_states = {}
-
-
-# === Завантаження книг ===
-try:
-    with open("books_ua.json", "r", encoding="utf-8") as f:
-        all_books = json.load(f)
-except Exception as e:
-    print(f"Помилка при завантаженні книг: {e}")
-    all_books = []
-
-# === Меню: Список книг ===
-@bot.message_handler(func=lambda msg: msg.text in ["📚 Книги SHARKAN"])
-def show_book_list(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for book in all_books:
-        markup.add(f"📖 {book['title']}")
-    markup.add("⬅️ Головне меню")
-    bot.send_message(message.chat.id, "📚 Обери книгу:", reply_markup=markup)
-
-# === Обробка вибору книги ===
-@bot.message_handler(func=lambda msg: msg.text.startswith("📖 "))
-def handle_book_selection(message):
-    user_id = str(message.from_user.id)
-    title = message.text.replace("📖 ", "")
-    for book in all_books:
-        if book["title"] == title:
-            user_states[user_id] = {
-                "book_title": title,
-                "page": 0
-            }
-            return show_book_page(message.chat.id, user_id)
-    bot.send_message(message.chat.id, "❌ Книгу не знайдено.")
-
-# === Навігація по сторінках книги ===
-@bot.message_handler(func=lambda msg: msg.text in ["⬅️ Назад", "➡️ Вперед"])
-def handle_book_page_nav(message):
-    user_id = str(message.from_user.id)
-    if user_id not in user_states or "book_title" not in user_states[user_id]:
-        return
-
-    if message.text == "➡️ Вперед":
-        user_states[user_id]["page"] += 1
-    elif message.text == "⬅️ Назад" and user_states[user_id]["page"] > 0:
-        user_states[user_id]["page"] -= 1
-
-    show_book_page(message.chat.id, user_id)
-
-# === Показати сторінку ===
-def show_book_page(chat_id, user_id):
-    state = user_states.get(user_id, {})
-    title = state.get("book_title")
-    page = state.get("page", 0)
-
-    for book in all_books:
-        if book["title"] == title:
-            pages = book.get("pages", [])
-            if page < 0 or page >= len(pages):
-                bot.send_message(chat_id, "📖 Це остання сторінка.")
-                return
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.row("⬅️ Назад", "➡️ Вперед")
-            markup.add("⬅️ Головне меню")
-            bot.send_message(
-                chat_id,
-                f"📘 *{title}*\n\n📄 Сторінка {page + 1}:\n\n{pages[page]}",
-                parse_mode="Markdown",
-                reply_markup=markup
-            )
-            return
-    
-# === Загрузка мотиваций ===
-try:
-    with open("motivations.json", "r", encoding="utf-8") as f:
-        motivation_data = json.load(f)
-except Exception as e:
-    motivation_data = {"ua": [], "ru": [], "en": []}
-    logging.error(f"[LOAD_MOTIVATION_ERROR] {e}")
-
-# === Загрузка советов от тренеров ===
-try:
-    with open("coaches_tips.json", "r", encoding="utf-8") as f:
-        coaches_data = json.load(f)
-except Exception as e:
-    coaches_data = {"ua": [], "ru": [], "en": []}
-    logging.error(f"[LOAD_COACHES_ERROR] {e}")
-    
-# === Переменная окружения ===
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("❌ Переменная BOT_TOKEN не задана. Установи её в окружении.")
-
-bot = TeleBot(BOT_TOKEN)
-ADMIN_ID = 693609628
 VERSION = "SHARKAN BOT v1.0 — MULTILANG + GENDER"
 
 # === Логирование ===
@@ -120,105 +26,184 @@ logging.basicConfig(
 # === Профили пользователей ===
 USER_PROFILE_FILE = "user_profiles.json"
 if os.path.exists(USER_PROFILE_FILE):
-    with open(USER_PROFILE_FILE, "r") as f:
+    with open(USER_PROFILE_FILE, "r", encoding="utf-8") as f:
         user_profiles = json.load(f)
 else:
     user_profiles = {}
 
 def save_profiles():
     try:
-        with open(USER_PROFILE_FILE, "w") as f:
+        with open(USER_PROFILE_FILE, "w", encoding="utf-8") as f:
             json.dump(user_profiles, f, indent=4, ensure_ascii=False)
     except Exception as e:
         logging.error(f"[SAVE_PROFILE_ERROR] {e}")
 
-# === Статистика пробіжок та монети ===
-run_stats_file = "run_stats.json"
-if os.path.exists(run_stats_file):
-    with open(run_stats_file, "r") as f:
-        run_stats = json.load(f)
-else:
-    run_stats = {}
-
-active_runs = {}
-
-def save_all():
-    save_profiles()
-    with open(run_stats_file, "w") as f:
-        json.dump(run_stats, f, indent=4, ensure_ascii=False)
-
 # === Языки ===
 LANGUAGES = {'ua': 'Українська', 'ru': 'Русский', 'en': 'English'}
 user_lang = {}
-
-# === Подгрузка языков при запуске ===
-for user_id, profile in user_profiles.items():
+for uid, profile in user_profiles.items():
     if "language" in profile:
-        user_lang[user_id] = profile["language"]
+        user_lang[uid] = profile["language"]
 
-# === Команда /start ===
-@bot.message_handler(commands=["start"])
-def start(message):
+# === Вспомогательные ===
+def get_lang(user_id: str) -> str:
+    return user_lang.get(user_id, "ua")
+
+# === Книги ===
+user_states = {}
+try:
+    with open("books_ua.json", "r", encoding="utf-8") as f:
+        all_books = json.load(f)
+except Exception as e:
+    print(f"Помилка при завантаженні книг: {e}")
+    all_books = []
+
+def clamp(val, lo, hi):
+    return max(lo, min(hi, val))
+
+def show_book_page(chat_id, user_id):
+    state = user_states.get(user_id, {})
+    title = state.get("book_title")
+    page = state.get("page", 0)
+
+    for book in all_books:
+        if book["title"] == title:
+            pages = book.get("pages", [])
+            if not pages:
+                bot.send_message(chat_id, "❌ Книга порожня.")
+                return
+            # Нормализуем индекс
+            page = clamp(page, 0, len(pages) - 1)
+            user_states[user_id]["page"] = page
+
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.row("⬅️ Назад", "➡️ Вперед")
+            markup.add("⬅️ Головне меню")
+            bot.send_message(
+                chat_id,
+                f"📘 *{title}*\n\n📄 Сторінка {page + 1} з {len(pages)}:\n\n{pages[page]}",
+                parse_mode="Markdown",
+                reply_markup=markup
+            )
+            return
+    bot.send_message(chat_id, "❌ Книгу не знайдено.")
+
+@bot.message_handler(func=lambda msg: msg.text == "📚 Книги SHARKAN")
+def show_book_list(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for book in all_books:
+        markup.add(f"📖 {book['title']}")
+    markup.add("⬅️ Головне меню")
+    bot.send_message(message.chat.id, "📚 Обери книгу:", reply_markup=markup)
+
+@bot.message_handler(func=lambda msg: msg.text and msg.text.startswith("📖 "))
+def handle_book_selection(message):
     user_id = str(message.from_user.id)
-    markup = types.InlineKeyboardMarkup()
-    for code, name in LANGUAGES.items():
-        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
-    bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
+    title = message.text.replace("📖 ", "", 1).strip()
+    for book in all_books:
+        if book["title"] == title:
+            user_states[user_id] = {"book_title": title, "page": 0}
+            show_book_page(message.chat.id, user_id)
+            return
+    bot.send_message(message.chat.id, "❌ Книгу не знайдено.")
 
-# === SHARKAN RUN v3 — Режим БІГ з таймером, автоочисткою, історією ===
+@bot.message_handler(func=lambda msg: msg.text in ["⬅️ Назад", "➡️ Вперед"])
+def handle_book_page_nav(message):
+    user_id = str(message.from_user.id)
+    if user_id not in user_states or "book_title" not in user_states[user_id]:
+        return
+    if message.text == "➡️ Вперед":
+        user_states[user_id]["page"] += 1
+    elif message.text == "⬅️ Назад":
+        user_states[user_id]["page"] -= 1
+    show_book_page(message.chat.id, user_id)
 
-import threading
-import time
-from datetime import datetime
-import json
-from telebot import types
+# === Мотивации и советы тренеров ===
+try:
+    with open("motivations.json", "r", encoding="utf-8") as f:
+        motivation_data = json.load(f)
+except Exception as e:
+    motivation_data = {"ua": [], "ru": [], "en": []}
+    logging.error(f"[LOAD_MOTIVATION_ERROR] {e}")
 
-# === Глобальні змінні ===
+try:
+    with open("coaches_tips.json", "r", encoding="utf-8") as f:
+        coaches_data = json.load(f)
+except Exception as e:
+    coaches_data = {"ua": [], "ru": [], "en": []}
+    logging.error(f"[LOAD_COACHES_ERROR] {e}")
+
+@bot.message_handler(commands=['motivation'])
+def cmd_motivation(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    phrases = motivation_data.get(lang, [])
+    bot.send_message(message.chat.id, random.choice(phrases) if phrases else "Немає мотивацій для твоєї мови.")
+
+@bot.message_handler(func=lambda m: m.text and m.text.lower() in [
+    "🧠 мотивація", "💖 натхнення", "🧠 мотивация", "💖 вдохновение",
+    "🧠 motivation", "💖 inspiration"
+])
+def motivation_handler(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    phrases = motivation_data.get(lang, [])
+    bot.send_message(message.chat.id, random.choice(phrases) if phrases else "Немає мотивацій для твоєї мови.")
+
+@bot.message_handler(func=lambda m: m.text and m.text.lower() in [
+    "🎓 поради від тренерів", "🎓 советы от тренеров", "🎓 pro trainer tips"
+])
+def coach_tip_handler(message):
+    user_id = str(message.from_user.id)
+    lang = get_lang(user_id)
+    tips = coaches_data.get(lang, [])
+    if not tips:
+        bot.send_message(message.chat.id, "❌ Немає порад для обраної мови.")
+        return
+    coach = random.choice(tips)
+    name = coach.get("name", "Без імені")
+    bio = coach.get(f"bio_{lang}", coach.get("bio", ""))
+    tip = coach.get(f"tip_{lang}", coach.get("tip", ""))
+    text = f"👤 *{name}*\n\n🧬 _{bio}_\n\n{tip}"
+    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+
+# === SHARKAN RUN — таймер, стоп, история ===
 running_timers = {}
 last_bot_messages = {}
 
-# === Отримання мови ===
-def get_lang(user_id):
-    return user_lang.get(user_id, "ua")
-
-# === Калькуляція калорій ===
 def calculate_calories(weight_kg, duration_min):
     MET = 9.8
     return round((MET * 3.5 * weight_kg / 200) * duration_min)
 
-# === Збереження результату ===
 def save_run_result(user_id, duration_min, calories):
     try:
-        with open("run_history.json", "r") as f:
+        with open("run_history.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-    except:
+    except Exception:
         data = {}
-    if user_id not in data:
-        data[user_id] = []
-    data[user_id].append({
+    data.setdefault(user_id, []).append({
         "date": datetime.now().strftime("%d.%m.%Y"),
         "duration_min": duration_min,
         "calories": calories
     })
-    with open("run_history.json", "w") as f:
+    with open("run_history.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
     return data[user_id][-3:]
 
-# === Відправка нового повідомлення з очищенням ===
 def send_clean_message(chat_id, user_id, text, reply_markup=None):
-    if user_id in last_bot_messages:
+    mid = last_bot_messages.get(user_id)
+    if mid:
         try:
-            bot.delete_message(chat_id, last_bot_messages[user_id])
-        except:
+            bot.delete_message(chat_id, mid)
+        except Exception:
             pass
     msg = bot.send_message(chat_id, text, reply_markup=reply_markup)
     last_bot_messages[user_id] = msg.message_id
     return msg.message_id
 
-# === Клас таймера з оновленням ===
 class RunTimer:
-    def __init__(self, bot, chat_id, user_id, weight_kg, lang):
-        self.bot = bot
+    def __init__(self, bot_obj, chat_id, user_id, weight_kg, lang):
+        self.bot = bot_obj
         self.chat_id = chat_id
         self.user_id = user_id
         self.weight_kg = weight_kg
@@ -226,7 +211,7 @@ class RunTimer:
         self.start_time = datetime.now()
         self.active = True
         self.message_id = None
-        self.thread = threading.Thread(target=self.loop)
+        self.thread = threading.Thread(target=self.loop, daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -249,37 +234,43 @@ class RunTimer:
                     self.bot.delete_message(self.chat_id, self.message_id)
                 msg = self.bot.send_message(self.chat_id, msg_text)
                 self.message_id = msg.message_id
-            except:
+            except Exception:
                 pass
             time.sleep(60)
 
-# === Кнопка "Почати біг" ===
-@bot.message_handler(func=lambda msg: msg.text.lower() in ["почати біг", "начать бег", "start run"])
+def text_contains_any(text: str, options: list[str]) -> bool:
+    return any(opt in text for opt in options)
+
+@bot.message_handler(func=lambda m: m.text and text_contains_any(m.text, ["🏁 Почати біг", "🏁 Начать бег", "🏁 Start run"]) or
+                                  (m.text and m.text.lower() in ["почати біг", "начать бег", "start run"]))
 def start_run(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
     lang = get_lang(user_id)
+
     weight = 70
     try:
-        with open("user_profiles.json", "r") as f:
-            profile = json.load(f)
-        weight = int(profile.get(user_id, {}).get("weight", 70))
-    except:
+        weight = int(user_profiles.get(user_id, {}).get("weight", 70))
+    except Exception:
         pass
 
     if user_id in running_timers:
-        running_timers[user_id].stop()
+        try:
+            running_timers[user_id].stop()
+        except Exception:
+            pass
+
     running_timers[user_id] = RunTimer(bot, chat_id, user_id, weight, lang)
 
     texts = {
-    "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
-    "ru": "🏃‍♂️ Беги! Я фиксирую твоё время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
-    "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
-}
+        "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
+        "ru": "🏃‍♂️ Беги! Я фиксирую твоё время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
+        "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
+    }
     send_clean_message(chat_id, user_id, texts.get(lang, texts["ua"]))
 
-# === Кнопка "Завершити біг" ===
-@bot.message_handler(func=lambda msg: msg.text.lower() in ["завершити біг", "завершить бег", "stop run"])
+@bot.message_handler(func=lambda m: m.text and text_contains_any(m.text, ["⛔️ Завершити біг", "⛔️ Завершить бег", "⛔️ Stop run"]) or
+                                  (m.text and m.text.lower() in ["завершити біг", "завершить бег", "stop run"]))
 def stop_run(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
@@ -297,15 +288,14 @@ def stop_run(message):
     duration, calories = running_timers[user_id].stop()
     del running_timers[user_id]
 
-    texts = {
-    "ua": "🏃‍♂️ Біжи! Я фіксую твій час...\n⛔️ Натисни «Завершити біг», коли завершиш.",
-    "ru": "🏃‍♂️ Беги! Я фиксирую твоё время...\n⛔️ Нажми «Завершить бег», когда закончишь.",
-    "en": "🏃‍♂️ Run! I’m tracking your time...\n⛔️ Tap 'Stop run' when you’re done."
-}
+    result_text = {
+        "ua": f"✅ Завершено!\n⏱ Тривалість: {duration} хв\n🔥 Калорії: {calories} ккал",
+        "ru": f"✅ Готово!\n⏱ Длительность: {duration} мин\n🔥 Калории: {calories} ккал",
+        "en": f"✅ Done!\n⏱ Duration: {duration} min\n🔥 Calories: {calories} kcal"
+    }
     send_clean_message(chat_id, user_id, result_text.get(lang, result_text["ua"]))
 
-# === Меню SHARKAN RUN ===
-@bot.message_handler(func=lambda msg: msg.text.lower() in ["⏱ режим біг", "⏱ режим бег", "⏱ running mode"])
+@bot.message_handler(func=lambda m: m.text and m.text.lower() in ["⏱ режим біг", "⏱ режим бег", "⏱ running mode"])
 def run_menu(message):
     user_id = str(message.from_user.id)
     lang = get_lang(user_id)
@@ -326,18 +316,16 @@ def run_menu(message):
 
     send_clean_message(message.chat.id, user_id, text, reply_markup=markup)
 
-# === Останні пробіжки ===
-@bot.message_handler(func=lambda msg: "результат" in msg.text.lower())
+@bot.message_handler(func=lambda m: m.text and any(s in m.text.lower() for s in ["результат", "results"]))
 def show_run_results(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
     lang = get_lang(user_id)
-
     try:
-        with open("run_history.json", "r") as f:
+        with open("run_history.json", "r", encoding="utf-8") as f:
             run_history = json.load(f)
         records = run_history.get(user_id, [])
-    except:
+    except Exception:
         records = []
 
     if not records:
@@ -354,22 +342,29 @@ def show_run_results(message):
         "ru": "📊 Последние пробежки:",
         "en": "📊 Recent runs:"
     }
+    unit = {"ua": "хв", "ru": "мин", "en": "min"}[lang if lang in ["ua","ru","en"] else "ua"]
 
-    result = titles.get(lang, titles["ua"]) + "\n"
+    result = [titles.get(lang, titles["ua"])]
     for run in reversed(records[-3:]):
-        result += f"📅 {run['date']} — {run['duration_min']} хв — {run['calories']} ккал\n"
+        result.append(f"📅 {run['date']} — {run['duration_min']} {unit} — {run['calories']} ккал")
+    send_clean_message(chat_id, user_id, "\n".join(result))
 
-    send_clean_message(chat_id, user_id, result)
+# === Язык/гендер ===
+@bot.message_handler(commands=["start"])
+def start(message):
+    markup = types.InlineKeyboardMarkup()
+    for code, name in LANGUAGES.items():
+        markup.add(types.InlineKeyboardButton(name, callback_data=f"lang_{code}"))
+    bot.send_message(message.chat.id, "👋 Обери мову / Choose your language / Выберите язык:", reply_markup=markup)
 
-# === Выбор языка ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    lang = call.data.split("_")[1]
+    lang = call.data.split("_", 1)[1]
 
-    user_profiles[user_id] = user_profiles.get(user_id, {})
-    user_profiles[user_id]["language"] = lang
+    profile = user_profiles.setdefault(user_id, {})
+    profile["language"] = lang
     user_lang[user_id] = lang
     save_profiles()
 
@@ -397,157 +392,125 @@ def set_language(call):
 
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=text, reply_markup=markup)
 
-# === Команда /motivation ===
-@bot.message_handler(commands=['motivation'])
-def send_motivation(message):
-    user_id = str(message.from_user.id)
-    lang = user_lang.get(user_id, 'ua')
-    phrases = motivation_data.get(lang, [])
-    if phrases:
-        bot.send_message(message.chat.id, random.choice(phrases))
-    else:
-        bot.send_message(message.chat.id, "Немає мотивацій для твоєї мови.")
-
-# === Выбор пола ===
 @bot.callback_query_handler(func=lambda call: call.data.startswith("gender_"))
 def handle_gender(call):
     chat_id = call.message.chat.id
     user_id = str(call.from_user.id)
-    gender = call.data.split("_")[1]  # male / female
+    gender = call.data.split("_", 1)[1]  # male / female
 
-    user_profiles[user_id]["gender"] = gender
+    profile = user_profiles.setdefault(user_id, {})
+    profile["gender"] = gender
     save_profiles()
 
-    lang = user_lang.get(user_id, "ua")
+    lang = get_lang(user_id)
     confirm = {
         "ua": "✅ Стать збережено.",
         "ru": "✅ Пол сохранён.",
         "en": "✅ Gender saved."
     }
-
     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id)
     bot.send_message(chat_id, confirm.get(lang, "✅ Done."))
     menu_from_id(chat_id, user_id)
 
-# === Текстовая мотивация из JSON ===
-@bot.message_handler(func=lambda message: message.text.lower() in [
-    "🧠 мотивація", "💖 натхнення", "🧠 мотивация", "💖 вдохновение",
-    "🧠 motivation", "💖 inspiration"
-])
-def motivation_handler(message):
-    user_id = str(message.from_user.id)
-    lang = user_lang.get(user_id, "ua")
-    phrases = motivation_data.get(lang, [])
-
-    if phrases:
-        bot.send_message(message.chat.id, random.choice(phrases))
-    else:
-        bot.send_message(message.chat.id, "Немає мотивацій для твоєї мови.")
-
-    bot.send_message(message.chat.id, text)
-
-# === Советы от тренеров ===
-@bot.message_handler(func=lambda message: message.text.lower() in [
-    "🎓 поради від тренерів", "🎓 советы от тренеров", "🎓 pro trainer tips"
-])
-def coach_tip_handler(message):
-    user_id = str(message.from_user.id)
-    lang = user_lang.get(user_id, "ua")
-    tips = coaches_data.get(lang, [])
-
-    if not tips:
-        bot.send_message(message.chat.id, "❌ Немає порад для обраної мови.")
-        return
-
-    coach = random.choice(tips)
-    name = coach.get("name", "Без імені")
-    bio = coach.get(f"bio_{lang}", coach.get("bio", ""))
-    tip = coach.get(f"tip_{lang}", coach.get("tip", ""))
-
-    text = f"👤 *{name}*\n\n🧬 _{bio}_\n\n{tip}"
-    bot.send_message(message.chat.id, text, parse_mode="Markdown")
-
 # === Главное меню ===
 def menu_from_id(chat_id, user_id):
-    lang = user_lang.get(user_id, "ua")
+    lang = get_lang(user_id)
     gender = user_profiles.get(user_id, {}).get("gender", "male")
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
-    buttons = []
-
     if lang == "ua":
-        if gender == "female":
-            buttons = [
-                "🔥 Мій план", "🏋️ Тренування", "💖 Натхнення", "⏱ Режим БІГ",
-                "🥷 Бій з Тінню", "📚 Книги SHARKAN", "🎓 Поради від тренерів", "🤖 AI SHARKAN",
-                "🌟 Виклик", "💎 SHRK COINS", "📊 Мій прогрес", "📈 Прогрес / Ранги",
-                "🏆 Рейтинг SHARKAN", "🎵 Музика", "👑 Мій шлях", "🛍 Магазин",
-                "💬 Чат SHARKAN", "📢 Канал SHARKAN", "🧘‍♀️ Відновлення", "🔒 Темна Зона",
-                "⚙️ Налаштування", "❓ FAQ / Підтримка", "📨 Співпраця"
-            ]
-        else:
-            buttons = [
-                "🔥 План на сьогодні", "🏋️ Тренування", "🧠 Мотивація", "⏱ Режим БІГ",
-                "🥷 Бій з Тінню", "📚 Книги SHARKAN", "🎓 Поради від тренерів", "🤖 AI SHARKAN",
-                "🥇 Виклик", "🪙 SHRK COINS", "📊 Мої результати", "📈 Статистика",
-                "🏆 Рейтинг SHARKAN", "🎵 Музика", "👤 Мій профіль", "🛍 Магазин",
-                "💬 Чат SHARKAN", "📢 Канал SHARKAN", "🧘 Відновлення", "🔒 Темна Зона",
-                "⚙️ Налаштування", "❓ Допомога / FAQ", "📨 Співпраця"
-            ]
-
+        buttons = [
+            "🔥 Мій план" if gender == "female" else "🔥 План на сьогодні",
+            "🏋️ Тренування",
+            "💖 Натхнення" if gender == "female" else "🧠 Мотивація",
+            "⏱ Режим БІГ",
+            "🥷 Бій з Тінню",
+            "📚 Книги SHARKAN",
+            "🎓 Поради від тренерів",
+            "🤖 AI SHARKAN",
+            "🌟 Виклик" if gender == "female" else "🥇 Виклик",
+            "💎 SHRK COINS" if gender == "female" else "🪙 SHRK COINS",
+            "📊 Мій прогрес" if gender == "female" else "📊 Мої результати",
+            "📈 Прогрес / Ранги" if gender == "female" else "📈 Статистика",
+            "🏆 Рейтинг SHARKAN",
+            "🎵 Музика",
+            "👑 Мій шлях" if gender == "female" else "👤 Мій профіль",
+            "🛍 Магазин",
+            "💬 Чат SHARKAN",
+            "📢 Канал SHARKAN",
+            "🧘‍♀️ Відновлення" if gender == "female" else "🧘 Відновлення",
+            "🔒 Темна Зона",
+            "⚙️ Налаштування",
+            "❓ FAQ / Підтримка" if gender == "female" else "❓ Допомога / FAQ",
+            "📨 Співпраця"
+        ]
     elif lang == "ru":
-        if gender == "female":
-            buttons = [
-                "🔥 Мой план", "🏋️ Тренировка", "💖 Вдохновение", "⏱ Режим БЕГ",
-                "🥷 Бой с Тенью", "📚 Книги SHARKAN", "🎓 Советы от тренеров", "🤖 AI SHARKAN",
-                "🌟 Вызов", "💎 SHRK COINS", "📊 Мой прогресс", "📈 Прогресс / Ранги",
-                "🏆 Рейтинг SHARKAN", "🎵 Музыка", "👑 Мой путь", "🛍 Магазин",
-                "💬 Чат SHARKAN", "📢 Канал SHARKAN", "🧘‍♀️ Восстановление", "🔒 Тёмная Зона",
-                "⚙️ Настройки", "❓ FAQ / Поддержка", "📨 Сотрудничество"
-            ]
-        else:
-            buttons = [
-                "🔥 План на сегодня", "🏋️ Тренировка", "🧠 Мотивация", "⏱ Режим БЕГ",
-                "🥷 Бой с Тенью", "📚 Книги SHARKAN", "🎓 Советы от тренеров", "🤖 AI SHARKAN",
-                "🥇 Вызов", "🪙 SHRK COINS", "📊 Мои результаты", "📈 Статистика",
-                "🏆 Рейтинг SHARKAN", "🎵 Музыка", "👤 Мой профиль", "🛍 Магазин",
-                "💬 Чат SHARKAN", "📢 Канал SHARKAN", "🧘 Восстановление", "🔒 Тёмная Зона",
-                "⚙️ Настройки", "❓ Помощь / FAQ", "📨 Сотрудничество"
-            ]
+        buttons = [
+            "🔥 Мой план" if gender == "female" else "🔥 План на сегодня",
+            "🏋️ Тренировка",
+            "💖 Вдохновение" if gender == "female" else "🧠 Мотивация",
+            "⏱ Режим БЕГ",
+            "🥷 Бой с Тенью",
+            "📚 Книги SHARKAN",
+            "🎓 Советы от тренеров",
+            "🤖 AI SHARKAN",
+            "🌟 Вызов" if gender == "female" else "🥇 Вызов",
+            "💎 SHRK COINS" if gender == "female" else "🪙 SHRK COINS",
+            "📊 Мой прогресс" if gender == "female" else "📊 Мои результаты",
+            "📈 Прогресс / Ранги" if gender == "female" else "📈 Статистика",
+            "🏆 Рейтинг SHARKAN",
+            "🎵 Музыка",
+            "👑 Мой путь" if gender == "female" else "👤 Мой профиль",
+            "🛍 Магазин",
+            "💬 Чат SHARKAN",
+            "📢 Канал SHARKAN",
+            "🧘‍♀️ Восстановление" if gender == "female" else "🧘 Восстановление",
+            "🔒 Тёмная Зона",
+            "⚙️ Настройки",
+            "❓ FAQ / Поддержка" if gender == "female" else "❓ Помощь / FAQ",
+            "📨 Сотрудничество"
+        ]
+    else:
+        buttons = [
+            "🔥 My Plan" if gender == "female" else "🔥 Today's Plan",
+            "🏋️ Workout",
+            "💖 Inspiration" if gender == "female" else "🧠 Motivation",
+            "⏱ Running Mode",
+            "🥷 Shadow Fight",
+            "📚 SHARKAN Books",
+            "🎓 Pro Trainer Tips",
+            "🤖 AI SHARKAN",
+            "🌟 Challenge" if gender == "female" else "🥇 Challenge",
+            "💎 SHRK COINS" if gender == "female" else "🪙 SHRK COINS",
+            "📊 My Progress" if gender == "female" else "📊 My Results",
+            "📈 Progress / Ranks" if gender == "female" else "📈 Statistics",
+            "🏆 SHARKAN Ranking",
+            "🎵 Music",
+            "👑 My Path" if gender == "female" else "👤 My Profile",
+            "🛍 Shop",
+            "💬 SHARKAN Chat",
+            "📢 SHARKAN Channel",
+            "🧘‍♀️ Recovery" if gender == "female" else "🧘 Recovery",
+            "🔒 Dark Zone",
+            "⚙️ Settings",
+            "❓ Help / FAQ",
+            "📨 Contact Us"
+        ]
 
-    elif lang == "en":
-        if gender == "female":
-            buttons = [
-                "🔥 My Plan", "🏋️ Workout", "💖 Inspiration", "⏱ Running Mode",
-                "🥷 Shadow Fight", "📚 SHARKAN Books", "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
-                "🌟 Challenge", "💎 SHRK COINS", "📊 My Progress", "📈 Progress / Ranks",
-                "🏆 SHARKAN Ranking", "🎵 Music", "👑 My Path", "🛍 Shop",
-                "💬 SHARKAN Chat", "📢 SHARKAN Channel", "🧘‍♀️ Recovery", "🔒 Dark Zone",
-                "⚙️ Settings", "❓ Help / FAQ", "📨 Contact Us"
-            ]
-        else:
-            buttons = [
-                "🔥 Today's Plan", "🏋️ Workout", "🧠 Motivation", "⏱ Running Mode",
-                "🥷 Shadow Fight", "📚 SHARKAN Books", "🎓 Pro Trainer Tips", "🤖 AI SHARKAN",
-                "🥇 Challenge", "🪙 SHRK COINS", "📊 My Results", "📈 Statistics",
-                "🏆 SHARKAN Ranking", "🎵 Music", "👤 My Profile", "🛍 Shop",
-                "💬 SHARKAN Chat", "📢 SHARKAN Channel", "🧘 Recovery", "🔒 Dark Zone",
-                "⚙️ Settings", "❓ Help / FAQ", "📨 Contact Us"
-            ]
-
-    # Отображение в два ряда
     for i in range(0, len(buttons), 2):
-        markup.add(*buttons[i:i + 2])
+        markup.add(*buttons[i:i+2])
 
-    bot.send_message(chat_id, "🧠 Обери розділ:" if lang == "ua" else
-                                 "🧠 Выберите раздел:" if lang == "ru" else
-                                 "🧠 Choose a section:", reply_markup=markup)
+    bot.send_message(
+        chat_id,
+        "🧠 Обери розділ:" if lang == "ua" else "🧠 Выберите раздел:" if lang == "ru" else "🧠 Choose a section:",
+        reply_markup=markup
+    )
 
-@bot.message_handler(func=lambda msg: msg.text.lower() in ["⬅️ головне меню", "⬅️ главное меню", "⬅️ main menu"])
+@bot.message_handler(func=lambda msg: msg.text and msg.text.lower() in ["⬅️ головне меню", "⬅️ главное меню", "⬅️ main menu"])
 def back_to_main_menu(message):
     user_id = str(message.from_user.id)
     menu_from_id(message.chat.id, user_id)
-    
+
 # === Запуск ===
 print(f"{VERSION} запущено.")
-bot.infinity_polling()
+bot.infinity_polling(skip_pending=True)
